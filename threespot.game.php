@@ -31,15 +31,15 @@ class ThreeSpot extends Table
         //  the corresponding ID in gameoptions.inc.php.
         // Note: afterwards, you can get/set the global variables with getGameStateValue/setGameStateInitialValue/setGameStateValue
         parent::__construct();
-        
+        parent::__construct();
         self::initGameStateLabels( array( 
-            //    "my_first_global_variable" => 10,
-            //    "my_second_global_variable" => 11,
-            //      ...
-            //    "my_first_game_variant" => 100,
-            //    "my_second_game_variant" => 101,
-            //      ...
-        ) );        
+                         "currentHandType" => 10, 
+                         "trickColor" => 11
+                          ) );
+
+        $this->cards = self::getNew( "module.common.deck" );
+        $this->cards->init( "card" );
+
 	}
 	
     protected function getGameName( )
