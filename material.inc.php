@@ -20,13 +20,13 @@
  */
 
 $this->colors = array(
-  1 => array( 'name' => clienttranslate('spade'),
+  1 => array( 'name' => clienttranslate('♠'),
               'nametr' => self::_('spade') ),
-  2 => array( 'name' => clienttranslate('heart'),
+  2 => array( 'name' => clienttranslate('♥'),
               'nametr' => self::_('heart') ),
-  3 => array( 'name' => clienttranslate('club'),
+  3 => array( 'name' => clienttranslate('♣'),
               'nametr' => self::_('club') ),
-  4 => array( 'name' => clienttranslate('diamond'),
+  4 => array( 'name' => clienttranslate('♦'),
               'nametr' => self::_('diamond') )
 );
 
@@ -40,19 +40,3 @@ $this->values_label = array(
   13 => clienttranslate('K'),
   14 => clienttranslate('A')
 );
-
-/*
-
-Example:
-
-$this->card_types = array(
-    1 => array( "card_name" => ...,
-                ...
-              )
-);
-
-*/
-
-
-
-
