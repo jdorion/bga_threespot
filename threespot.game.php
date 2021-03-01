@@ -101,14 +101,6 @@ class ThreeSpot extends Table
         
         $this->cards->createCards( $cards, 'deck' );
 
-        // Shuffle deck
-        $this->cards->shuffle('deck');
-        // Deal 8 cards to each player
-        $players = self::loadPlayersBasicInfos();
-        foreach ( $players as $player_id => $player ) {
-            $cards = $this->cards->pickCards(8, 'deck', $player_id);
-        } 
-
         // Init global values with their initial values
         //self::setGameStateInitialValue( 'my_first_global_variable', 0 );
         
