@@ -90,8 +90,15 @@ class ThreeSpot extends Table
         foreach ( $this->colors as $color_id => $color ) {
             // spade, heart, diamond, club
             for ($value = 7; $value <= 14; $value ++) {
+                // special logic for the 5 and the 3
+                $card_value = $value;
+                if ($card_value == 7 && $color_id == 1) {
+                    $card_value = 3;
+                } else if ($card_value == 7 && $color_id == 2) {
+                    $card_value = 5;
+                }
                 //  7, 3, 4, ... K, A
-                $cards [] = array ('type' => $color_id,'type_arg' => $value,'nbr' => 1 );
+                $cards [] = array ('type' => $color_id,'type_arg' => $card_value,'nbr' => 1 );
             }
         }
         
@@ -169,6 +176,7 @@ class ThreeSpot extends Table
         In this space, you can put any utility methods useful for your game logic
     */
 
+    // figures out which cards can be played
     function getValidCards($player_id) {
         $hand = $this->cards->getCardsInLocation( 'hand', $player_id );
         $currentTrickColor = self::getGameStateValue('trickColor');
@@ -190,6 +198,17 @@ class ThreeSpot extends Table
         return $cards;
     }
 
+    // helper method to fix that the 5 hearts and 3 spade are really the 7s in the database
+    function getCardValue($value, $color) {
+
+        // 3 of spades
+        if ($color == 1 && value == 7) { return 3; }
+        // 3 of hearts
+        if ($color == 2 && value == 7) { return 5; }
+        // else
+        return $value;
+    }
+
 
 //////////////////////////////////////////////////////////////////////////////
 //////////// Player actions
@@ -207,17 +226,41 @@ class ThreeSpot extends Table
         if (in_array($card_id, $validCards)) {
             $this->cards->moveCard($card_id, 'cardsontable', $player_id);
             $currentCard = $this->cards->getCard($card_id);
+
             // set the current trick color if it it hasn't yet
             $currentTrickColor = self::getGameStateValue( 'trickColor' ) ;
-            if( $currentTrickColor == 0 )
+            if( $currentTrickColor == 0 ) {
                 self::setGameStateValue( 'trickColor', $currentCard['type'] );
-    
+            }
+            
+            // check if card played is trump (for notification)
+            $currentTrumpColor = self::getGameStateValue( 'handColor' );
+            $trump = "";
+            if ($currentCard['type'] == $currentTrumpColor) {
+                $trump = "(trump)";
+            }
+
             // And notify
-            self::notifyAllPlayers('playCard', clienttranslate('${player_name} plays ${value_displayed}${color_displayed}'), array (
-                    'i18n' => array ('color_displayed','value_displayed' ),'card_id' => $card_id,'player_id' => $player_id,
-                    'player_name' => self::getActivePlayerName(),'value' => $currentCard ['type_arg'],
-                    'value_displayed' => $this->values_label [$currentCard ['type_arg']],'color' => $currentCard ['type'],
-                    'color_displayed' => $this->colors [$currentCard ['type']] ['name'] ));
+            self::notifyAllPlayers(
+                'playCard', 
+                clienttranslate('${player_name} plays ${value_displayed}${color_displayed} ${trump}'), 
+                array (
+                'i18n' => array (
+                    'color_displayed',
+                    'value_displayed' 
+                ),
+                'player_name' => self::getActivePlayerName(),
+                'value_displayed' => $this->values_label [$currentCard ['type_arg']],
+                'color_displayed' => $this->colors [$currentCard ['type']] ['name'],
+                'trump' => $trump,
+                
+                'player_id' => $player_id,
+                'color' => $currentCard ['type'],
+                'value' => $currentCard ['type_arg'],
+                'card_id' => $card_id,
+                )
+            );
+
             // Next player
             $this->gamestate->nextState('playCard');
         } else {
@@ -320,11 +363,6 @@ class ThreeSpot extends Table
                 }
             }
 
-            self::dump( 'current trick color:', $currentTrickColor ); 
-            self::dump( 'current hand color: ', $currentTrumpColor ); 
-            self::dump( 'best_color:', $best_color ); 
-            self::dump( 'best_value:', $best_value ); 
-
             if( $best_value_player_id === null )
                 throw new feException( self::_("Error, nobody wins the trick") );
             
@@ -337,7 +375,7 @@ class ThreeSpot extends Table
             // Note: we use 2 notifications here in order we can pause the display during the first notification
             //  before we move all cards to the winner (during the second)
             $players = self::loadPlayersBasicInfos();
-            $trump = ($trumpHasBeenPlayed) ? "(trump)" : "";
+            $trump = ($trumpHasBeenPlayed || ($currentTrickColor == $currentTrumpColor)) ? "(trump)" : "";
 
             self::notifyAllPlayers( 'trickWin', clienttranslate('${player_name} wins the trick with ${card_value}${card_color} ${trump}'), array(
                 'player_id' => $best_value_player_id,

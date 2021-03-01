@@ -61,23 +61,35 @@ function (dojo, declare) {
             this.playerHand.setSelectionAppearance('class');
 
             // Create cards types:
+            // have to create the 3 and 5 as 7s here so that the stock model knows where to grab the image
+            // it does it by the id, and image_items_per_row, so the 3 has to be id 0 and the 5 has to be id 8.
+            // this is just building the card, not really associating it with a value.
             for (var color = 1; color <= 4; color++) {
                 for (var value = 7; value <= 14; value++) {
+
                     // Build card type id
                     var card_type_id = this.getCardUniqueId(color, value);
                     this.playerHand.addItemType(card_type_id, card_type_id, g_gamethemeurl + 'img/cards.jpg', card_type_id);
                 }
             }
 
+            window.playerHand = this.gamedatas.hand;
             // Cards in player's hand
+            // here we need to check if the card in the hand is the 3 or 5 and change the id
             for ( var i in this.gamedatas.hand) {
                 var card = this.gamedatas.hand[i];
                 var color = card.type;
                 var value = card.type_arg;
-                this.playerHand.addToStockWithId(this.getCardUniqueId(color, value), card.id);
+
+                var uniqueId = this.getCardUniqueId(color, value);
+                if (value == 3 && color == 1) { uniqueId = 0;}
+                if (value == 5 && color == 2) { uniqueId = 8;}
+                this.playerHand.addToStockWithId(uniqueId, card.id);
             }
 
             // Cards played on table
+            // since the playCardOnTable method just displays a card and it's not part of a stock object, 
+            // we have to put extra logic there for the 3 and 5
             for (i in this.gamedatas.cardsontable) {
                 var card = this.gamedatas.cardsontable[i];
                 var color = card.type;
@@ -104,14 +116,11 @@ function (dojo, declare) {
         onEnteringState: function( stateName, args )
         {
             console.log( 'Entering state: '+stateName );
-            console.log('args length: ' + args.length);
-            window.onEnteringStateArgs = args;
 
             switch( stateName )
             {
                 case 'playerTurn':
                     if (this.isCurrentPlayerActive()) {
-                        console.log('making cards selectable' + args.args.cards);
                         this.makeCardsSelectable(args.args.cards);
                     } else {
                         dojo.query("#myhand .stockitem").removeClass("stockitem_selectable").addClass("stockitem_unselectable");
@@ -211,9 +220,14 @@ function (dojo, declare) {
 
         playCardOnTable : function(player_id, color, value, card_id) {
             console.log("playing card on table: player_id: " + player_id + ", color: " + color + ", value: " + value + ", card_id: " + card_id);
+            
+            // hack for the 3 and 5 so it calculates the correct positioning in the CSS sprite
+            var card_value = value;
+            if (card_value == 5 || card_value == 3) { card_value = 7; }
+
             // player_id => direction
             dojo.place(this.format_block('jstpl_cardontable', {
-                x : this.cardwidth * (value - 7),
+                x : this.cardwidth * (card_value - 7),
                 y : this.cardheight * (color - 1),
                 player_id : player_id
             }), 'playertablecard_' + player_id);

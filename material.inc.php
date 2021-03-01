@@ -31,6 +31,8 @@ $this->colors = array(
 );
 
 $this->values_label = array(
+  3 => '3',
+  5 => '5',
   7 => '7',
   8 => '8',
   9 => '9',
