@@ -33,7 +33,7 @@ class ThreeSpot extends Table
         parent::__construct();
         parent::__construct();
         self::initGameStateLabels( array( 
-                         "currentHandType" => 10, 
+                         "handColor" => 10, 
                          "trickColor" => 11
                           ) );
 
@@ -80,12 +80,8 @@ class ThreeSpot extends Table
         /************ Start the game initialization *****/
         // Init global values with their initial values
 
-        // Note: hand types: 0 = give 3 cards to player on the left
-        //                   1 = give 3 cards to player on the right
-        //                   2 = give 3 cards to player opposite
-        //                   3 = keep cards
-        self::setGameStateInitialValue( 'currentHandType', 0 );
-        
+        // Set trump of the hand to zero (= no trump yet, will eventually be set in the bidding process)
+        self::setGameStateInitialValue( 'handColor', 0 );        
         // Set current trick color to zero (= no trick color)
         self::setGameStateInitialValue( 'trickColor', 0 );
         
@@ -217,7 +213,7 @@ class ThreeSpot extends Table
                 self::setGameStateValue( 'trickColor', $currentCard['type'] );
     
             // And notify
-            self::notifyAllPlayers('playCard', clienttranslate('${player_name} plays ${value_displayed} ${color_displayed}'), array (
+            self::notifyAllPlayers('playCard', clienttranslate('${player_name} plays ${value_displayed}${color_displayed}'), array (
                     'i18n' => array ('color_displayed','value_displayed' ),'card_id' => $card_id,'player_id' => $player_id,
                     'player_name' => self::getActivePlayerName(),'value' => $currentCard ['type_arg'],
                     'value_displayed' => $this->values_label [$currentCard ['type_arg']],'color' => $currentCard ['type'],
@@ -275,6 +271,9 @@ class ThreeSpot extends Table
             // Notify player about his cards
             self::notifyPlayer($player_id, 'newHand', '', array ('cards' => $cards ));
         }
+
+        // TODO: fix this, setting trump to be hearts by default
+        self::setGameStateInitialValue('handColor', 2);
         $this->gamestate->nextState("");
     }
 
@@ -291,21 +290,46 @@ class ThreeSpot extends Table
             // This is the end of the trick
             $cards_on_table = $this->cards->getCardsInLocation('cardsontable');
             $best_value = 0;
+            $best_color = 0;
             $best_value_player_id = null;
             $currentTrickColor = self::getGameStateValue('trickColor');
+            $currentTrumpColor = self::getGameStateValue('handColor');
+            $trumpHasBeenPlayed = false;
+
             foreach ( $cards_on_table as $card ) {
                 // Note: type = card color
-                if ($card ['type'] == $currentTrickColor) {
+                // determine the best card in the trick's suit, if trump has not been played 
+                if ($card ['type'] == $currentTrickColor && !$trumpHasBeenPlayed) {
                     if ($best_value_player_id === null || $card ['type_arg'] > $best_value) {
                         $best_value_player_id = $card ['location_arg']; // Note: location_arg = player who played this card on table
                         $best_value = $card ['type_arg']; // Note: type_arg = value of the card
+                        $best_color = $card ['type'];
+                    }
+                // if trump has been played, that's the only number that matters now
+                // added extra check to skip trump rules if trump was led
+                } else if ($currentTrickColor != $currentTrumpColor && $card['type'] == $currentTrumpColor) {
+                    self::debug("trump has been played");
+                    $trumpHasBeenPlayed = true;
+                    // reset best value to trump value, in case your trump is lower than what's been played.
+                    $best_value = 0;
+                    if ($best_value_player_id === null || $card ['type_arg'] > $best_value) {
+                        $best_value_player_id = $card ['location_arg']; // Note: location_arg = player who played this card on table
+                        $best_value = $card ['type_arg']; // Note: type_arg = value of the card
+                        $best_color = $card ['type'];
                     }
                 }
             }
+
+            self::dump( 'current trick color:', $currentTrickColor ); 
+            self::dump( 'current hand color: ', $currentTrumpColor ); 
+            self::dump( 'best_color:', $best_color ); 
+            self::dump( 'best_value:', $best_value ); 
+
+            if( $best_value_player_id === null )
+                throw new feException( self::_("Error, nobody wins the trick") );
             
             // Active this player => he's the one who starts the next trick
             $this->gamestate->changeActivePlayer( $best_value_player_id );
-            
             // Move all cards to "cardswon" of the given player
             $this->cards->moveAllCardsInLocation('cardsontable', 'cardswon', null, $best_value_player_id);
 
@@ -313,10 +337,16 @@ class ThreeSpot extends Table
             // Note: we use 2 notifications here in order we can pause the display during the first notification
             //  before we move all cards to the winner (during the second)
             $players = self::loadPlayersBasicInfos();
-            self::notifyAllPlayers( 'trickWin', clienttranslate('${player_name} wins the trick'), array(
+            $trump = ($trumpHasBeenPlayed) ? "(trump)" : "";
+
+            self::notifyAllPlayers( 'trickWin', clienttranslate('${player_name} wins the trick with ${card_value}${card_color} ${trump}'), array(
                 'player_id' => $best_value_player_id,
-                'player_name' => $players[ $best_value_player_id ]['player_name']
-            ) );            
+                'player_name' => $players[ $best_value_player_id ]['player_name'],
+                'card_value' => $this->values_label [$best_value],
+                'card_color' => $this->colors [$best_color] ['name'],
+                'trump' => $trump
+            ) );          
+
             self::notifyAllPlayers( 'giveAllCardsToPlayer','', array(
                 'player_id' => $best_value_player_id
             ) );

@@ -113,6 +113,8 @@ function (dojo, declare) {
                     if (this.isCurrentPlayerActive()) {
                         console.log('making cards selectable' + args.args.cards);
                         this.makeCardsSelectable(args.args.cards);
+                    } else {
+                        dojo.query("#myhand .stockitem").removeClass("stockitem_selectable").addClass("stockitem_unselectable");
                     }
                 break;
             
