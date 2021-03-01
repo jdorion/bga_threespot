@@ -181,6 +181,26 @@ class ThreeSpot extends Table
         In this space, you can put any utility methods useful for your game logic
     */
 
+    function getValidCards($player_id) {
+        $hand = $this->cards->getCardsInLocation( 'hand', $player_id );
+        $currentTrickColor = self::getGameStateValue('trickColor');
+    
+        // If not the first card of the trick
+        if($currentTrickColor != 0){
+          // Keep only the cards with matching color (if at least one such card)
+          $filteredHand = array_values(array_filter($hand, function($card) use ($currentTrickColor){ return $card['type'] == $currentTrickColor; }));
+        }
+
+        // if there are no matching card in the suit or this is the first card in the trick, all cards are valid
+        if(empty($filteredHand)) {
+            // need to run the hand through array_values to fix the indexes
+            $filteredHand = array_values($hand);
+        }
+        $hand = $filteredHand;
+    
+        $cards = array_map(function($card){ return $card['id'];}, $hand);
+        return $cards;
+    }
 
 
 //////////////////////////////////////////////////////////////////////////////
@@ -194,22 +214,28 @@ class ThreeSpot extends Table
     function playCard($card_id) {
         self::checkAction("playCard");
         $player_id = self::getActivePlayerId();
-        $this->cards->moveCard($card_id, 'cardsontable', $player_id);
-        // XXX check rules here
-        $currentCard = $this->cards->getCard($card_id);
-        // set the current trick color if it it hasn't yet
-        $currentTrickColor = self::getGameStateValue( 'trickColor' ) ;
-        if( $currentTrickColor == 0 )
-            self::setGameStateValue( 'trickColor', $currentCard['type'] );
 
-        // And notify
-        self::notifyAllPlayers('playCard', clienttranslate('${player_name} plays ${value_displayed} ${color_displayed}'), array (
-                'i18n' => array ('color_displayed','value_displayed' ),'card_id' => $card_id,'player_id' => $player_id,
-                'player_name' => self::getActivePlayerName(),'value' => $currentCard ['type_arg'],
-                'value_displayed' => $this->values_label [$currentCard ['type_arg']],'color' => $currentCard ['type'],
-                'color_displayed' => $this->colors [$currentCard ['type']] ['name'] ));
-        // Next player
-        $this->gamestate->nextState('playCard');
+        $validCards = self::getValidCards($player_id);
+        if (in_array($card_id, $validCards)) {
+            $this->cards->moveCard($card_id, 'cardsontable', $player_id);
+            $currentCard = $this->cards->getCard($card_id);
+            // set the current trick color if it it hasn't yet
+            $currentTrickColor = self::getGameStateValue( 'trickColor' ) ;
+            if( $currentTrickColor == 0 )
+                self::setGameStateValue( 'trickColor', $currentCard['type'] );
+    
+            // And notify
+            self::notifyAllPlayers('playCard', clienttranslate('${player_name} plays ${value_displayed} ${color_displayed}'), array (
+                    'i18n' => array ('color_displayed','value_displayed' ),'card_id' => $card_id,'player_id' => $player_id,
+                    'player_name' => self::getActivePlayerName(),'value' => $currentCard ['type_arg'],
+                    'value_displayed' => $this->values_label [$currentCard ['type_arg']],'color' => $currentCard ['type'],
+                    'color_displayed' => $this->colors [$currentCard ['type']] ['name'] ));
+            // Next player
+            $this->gamestate->nextState('playCard');
+        } else {
+            throw new feException( self::_("You can't play that card - you must follow suit if possible."), true );
+        }
+
     }
 
     
@@ -222,11 +248,19 @@ class ThreeSpot extends Table
         These methods function is to return some additional information that is specific to the current
         game state.
     */
+  /*
+   * Return the list of cards that can be played during the trick
+   */
+  function argPlayerTurn()
+  {
+    $player_id = self::getActivePlayerId();
 
-    function argGiveCards() {
-        return array ();
-    }
+    $result = array();
+    $result['cards'] = self::getValidCards($player_id);
 
+    self::dump( 'cards', $result );
+    return $result;
+  }
 
 //////////////////////////////////////////////////////////////////////////////
 //////////// Game state actions
@@ -241,7 +275,7 @@ class ThreeSpot extends Table
         // Take back all cards (from any location => null) to deck
         $this->cards->moveAllCardsInLocation(null, "deck");
         $this->cards->shuffle('deck');
-        // Deal 13 cards to each players
+        // Deal 8 cards to each players
         // Create deck, shuffle it and give 8 initial cards
         $players = self::loadPlayersBasicInfos();
         foreach ( $players as $player_id => $player ) {

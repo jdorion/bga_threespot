@@ -57,7 +57,8 @@ function (dojo, declare) {
             this.playerHand = new ebg.stock(); // new stock object for hand
             this.playerHand.create( this, $('myhand'), this.cardwidth, this.cardheight );
             this.playerHand.image_items_per_row = 8; // 8 images per row
-
+            //this.playerHand.setSelectionMode(0);
+            this.playerHand.setSelectionAppearance('class');
 
             // Create cards types:
             for (var color = 1; color <= 4; color++) {
@@ -103,9 +104,17 @@ function (dojo, declare) {
         onEnteringState: function( stateName, args )
         {
             console.log( 'Entering state: '+stateName );
-            
+            console.log('args length: ' + args.length);
+            window.onEnteringStateArgs = args;
+
             switch( stateName )
             {
+                case 'playerTurn':
+                    if (this.isCurrentPlayerActive()) {
+                        console.log('making cards selectable' + args.args.cards);
+                        this.makeCardsSelectable(args.args.cards);
+                    }
+                break;
             
             /* Example:
             
@@ -188,6 +197,14 @@ function (dojo, declare) {
         // Get card unique identifier based on its color and value
         getCardUniqueId : function(color, value) {
             return (color - 1) * 8 + (value - 7);
+        },
+
+        
+        makeCardsSelectable(cards){    
+            window.mCScards = cards;
+
+            dojo.query("#myhand .stockitem").removeClass("stockitem_selectable").addClass("stockitem_unselectable");
+            cards.forEach(cardId => dojo.query("#myhand_item_" + cardId).removeClass('stockitem_unselectable').addClass('stockitem_selectable') );
         },
 
         playCardOnTable : function(player_id, color, value, card_id) {

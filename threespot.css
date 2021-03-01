@@ -104,3 +104,12 @@
     background-image: url('img/cards.jpg'); 
 }
 
+.stockitem_selectable {
+    cursor:pointer;
+    box-shadow: 0 0 5px 1px #4782ff;
+    transition:transform 0.15s;
+}
+.stockitem_selectable:hover {
+    animation:none;
+    transform:scale(1.15);
+}
