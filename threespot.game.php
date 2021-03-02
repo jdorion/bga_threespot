@@ -34,7 +34,11 @@ class ThreeSpot extends Table
         parent::__construct();
         self::initGameStateLabels( array( 
                          "handColor" => 10, 
-                         "trickColor" => 11
+                         "trickColor" => 11,
+                         "teamA_hand_points" => 12,
+                         "teamB_hand_points" => 13,
+                         "teamA1" => 14,
+                         "teamA2" => 15
                           ) );
 
         $this->cards = self::getNew( "module.common.deck" );
@@ -84,7 +88,18 @@ class ThreeSpot extends Table
         self::setGameStateInitialValue( 'handColor', 0 );        
         // Set current trick color to zero (= no trick color)
         self::setGameStateInitialValue( 'trickColor', 0 );
+        // set the total hand points for each team to 0;
+        self::setGameStateInitialValue('teamA_hand_points', 0);
+        self::setGameStateInitialValue('teamB_hand_points', 0);
         
+        // initialize team members
+        // TO DO: fix this to take into account player order after that's added as an option
+        $keys = array_keys($players);
+        self::setGameStateInitialValue('teamA1', $keys[0]);
+        self::setGameStateInitialValue('teamA2', $keys[2]);
+
+
+
         // Create cards
         $cards = array ();
         foreach ( $this->colors as $color_id => $color ) {
@@ -198,17 +213,19 @@ class ThreeSpot extends Table
         return $cards;
     }
 
-    // helper method to fix that the 5 hearts and 3 spade are really the 7s in the database
-    function getCardValue($value, $color) {
-
-        // 3 of spades
-        if ($color == 1 && value == 7) { return 3; }
-        // 3 of hearts
-        if ($color == 2 && value == 7) { return 5; }
-        // else
-        return $value;
+    function isThreeSpades($card) {
+        return $card['type'] == 1 && $card['type_arg'] == 3;
     }
 
+    function isFiveHearts($card) {
+        return $card['type'] == 2 && $card['type_arg'] == 5;
+    }
+
+    function isTeamA($player) {
+        $teamA1 = self::getGameStateValue('teamA1');
+        $teamA2 = self::getGameStateValue('teamA2');
+        return ($player == $teamA1) || ($player == $teamA2);
+    }
 
 //////////////////////////////////////////////////////////////////////////////
 //////////// Player actions
@@ -303,6 +320,11 @@ class ThreeSpot extends Table
     */
 
     function stNewHand() {
+
+        // reset hand point total
+        self::setGameStateInitialValue('teamA_hand_points', 0);
+        self::setGameStateInitialValue('teamB_hand_points', 0);
+
         // Take back all cards (from any location => null) to deck
         $this->cards->moveAllCardsInLocation(null, "deck");
         $this->cards->shuffle('deck');
@@ -317,6 +339,8 @@ class ThreeSpot extends Table
 
         // TODO: fix this, setting trump to be hearts by default
         self::setGameStateInitialValue('handColor', 2);
+        
+
         $this->gamestate->nextState("");
     }
 
@@ -339,7 +363,13 @@ class ThreeSpot extends Table
             $currentTrumpColor = self::getGameStateValue('handColor');
             $trumpHasBeenPlayed = false;
 
+            $points = 1;
             foreach ( $cards_on_table as $card ) {
+
+                // points rules for the special cards
+                if (self::isThreeSpades($card)) { $points = $points - 3; }
+                if (self::isFiveHearts($card)) {$points = $points + 5; }
+
                 // Note: type = card color
                 // determine the best card in the trick's suit, if trump has not been played 
                 if ($card ['type'] == $currentTrickColor && !$trumpHasBeenPlayed) {
@@ -351,7 +381,6 @@ class ThreeSpot extends Table
                 // if trump has been played, that's the only number that matters now
                 // added extra check to skip trump rules if trump was led
                 } else if ($currentTrickColor != $currentTrumpColor && $card['type'] == $currentTrumpColor) {
-                    self::debug("trump has been played");
                     $trumpHasBeenPlayed = true;
                     // reset best value to trump value, in case your trump is lower than what's been played.
                     $best_value = 0;
@@ -363,9 +392,22 @@ class ThreeSpot extends Table
                 }
             }
 
-            if( $best_value_player_id === null )
+            if( $best_value_player_id === null ) {
                 throw new feException( self::_("Error, nobody wins the trick") );
-            
+            }
+
+            // save points gained/lost in this trick
+            self::dump('trick points: ', $points);
+            self::dump('trick winner is in Team A: ', self::isTeamA($best_value_player_id));
+            if (self::isTeamA($best_value_player_id)) {
+                $currentHandPoints = self::getGameStateValue('teamA_hand_points');
+                self::setGameStateInitialValue('teamA_hand_points', $currentHandPoints + $points); 
+        
+            } else {
+                $currentHandPoints = self::getGameStateValue('teamB_hand_points');
+                self::setGameStateInitialValue('teamB_hand_points', $currentHandPoints + $points);
+            }
+
             // Active this player => he's the one who starts the next trick
             $this->gamestate->changeActivePlayer( $best_value_player_id );
             // Move all cards to "cardswon" of the given player
@@ -377,12 +419,13 @@ class ThreeSpot extends Table
             $players = self::loadPlayersBasicInfos();
             $trump = ($trumpHasBeenPlayed || ($currentTrickColor == $currentTrumpColor)) ? "(trump)" : "";
 
-            self::notifyAllPlayers( 'trickWin', clienttranslate('${player_name} wins the trick with ${card_value}${card_color} ${trump}'), array(
+            self::notifyAllPlayers( 'trickWin', clienttranslate('${player_name} wins the trick with ${card_value}${card_color} ${trump} for ${points} points'), array(
                 'player_id' => $best_value_player_id,
                 'player_name' => $players[ $best_value_player_id ]['player_name'],
                 'card_value' => $this->values_label [$best_value],
                 'card_color' => $this->colors [$best_color] ['name'],
-                'trump' => $trump
+                'trump' => $trump,
+                'points' => $points
             ) );          
 
             self::notifyAllPlayers( 'giveAllCardsToPlayer','', array(
@@ -410,33 +453,30 @@ class ThreeSpot extends Table
         // Count and score points, then end the game or go to the next hand.
         $players = self::loadPlayersBasicInfos();
 
+        $teamAHandPoints = self::getGameStateValue('teamA_hand_points');
+        $teamBHandPoints = self::getGameStateValue('teamB_hand_points');
+
         $player_to_points = array ();
         foreach ( $players as $player_id => $player ) {
-            $player_to_points [$player_id] = 0;
-        }
-
-        $cards = $this->cards->getCardsInLocation("cardswon");
-        foreach ( $cards as $card ) {
-            $player_id = $card ['location_arg'];
-            // Note: 2 = heart
-            if ($card ['type'] == 2) {
-                $player_to_points [$player_id] ++;
+            if (self::isTeamA($player_id)) {
+                $player_to_points [$player_id] = $teamAHandPoints;
+            } else {
+                $player_to_points [$player_id] = $teamBHandPoints;
             }
         }
-
 
         // Apply scores to player
         foreach ( $player_to_points as $player_id => $points ) {
             if ($points != 0) {
-                $sql = "UPDATE player SET player_score=player_score-$points  WHERE player_id='$player_id'";
+                $sql = "UPDATE player SET player_score=player_score+$points  WHERE player_id='$player_id'";
                 self::DbQuery($sql);
                 $heart_number = $player_to_points [$player_id];
-                self::notifyAllPlayers("points", clienttranslate('${player_name} gets ${nbr} hearts and looses ${nbr} points'), array (
+                self::notifyAllPlayers("points", clienttranslate('${player_name} gets ${nbr} points'), array (
                         'player_id' => $player_id,'player_name' => $players [$player_id] ['player_name'],
                         'nbr' => $heart_number ));
             } else {
                 // No point lost (just notify)
-                self::notifyAllPlayers("points", clienttranslate('${player_name} did not get any hearts'), array (
+                self::notifyAllPlayers("points", clienttranslate('${player_name} did not gain any points'), array (
                         'player_id' => $player_id,'player_name' => $players [$player_id] ['player_name'] ));
             }
         }
@@ -445,7 +485,7 @@ class ThreeSpot extends Table
 
         ///// Test if this is the end of the game
         foreach ( $newScores as $player_id => $score ) {
-            if ($score <= -100) {
+            if ($score >= 52) {
                 // Trigger the end of the game !
                 $this->gamestate->nextState("endGame");
                 return;
