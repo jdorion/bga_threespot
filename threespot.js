@@ -73,7 +73,8 @@ function (dojo, declare) {
                 }
             }
 
-            window.playerHand = this.gamedatas.hand;
+            window.gamedatas = this.gamedatas;
+
             // Cards in player's hand
             // here we need to check if the card in the hand is the 3 or 5 and change the id
             for ( var i in this.gamedatas.hand) {
@@ -100,6 +101,9 @@ function (dojo, declare) {
 
             dojo.connect( this.playerHand, 'onChangeSelection', this, 'onPlayerHandSelectionChanged' );
  
+            // hand info
+            this.replaceHandInfo(gamedatas.trump, gamedatas.teama, gamedatas.teamb)
+
             // Setup game notifications to handle (see "setupNotifications" method below)
             this.setupNotifications();
 
@@ -209,7 +213,6 @@ function (dojo, declare) {
         getCardUniqueId : function(color, value) {
             return (color - 1) * 8 + (value - 7);
         },
-
         
         makeCardsSelectable(cards){    
             window.mCScards = cards;
@@ -248,6 +251,16 @@ function (dojo, declare) {
 
             // In any case: move it to its final destination
             this.slideToObject('cardontable_' + player_id, 'playertablecard_' + player_id).play();
+        },
+
+        replaceHandInfo : function (trump, teama, teamb) {
+            // hand info
+            dojo.destroy('handinfo')
+            dojo.place(this.format_block('jstpl_handinfo', {
+                trump : trump,
+                teama : teama,
+                teamb : teamb
+            }), 'handinfo_wrap');
         },
 
         ///////////////////////////////////////////////////
@@ -331,7 +344,8 @@ function (dojo, declare) {
             this.playCardOnTable(notif.args.player_id, notif.args.color, notif.args.value, notif.args.card_id);
         },
         notif_trickWin : function(notif) {
-            // We do nothing here (just wait in order players can view the 4 cards played before they're gone.
+            // Update hand info to show updated trick score
+            this.replaceHandInfo(notif.args.trump, notif.args.teama, notif.args.teamb) 
         },
         notif_giveAllCardsToPlayer : function(notif) {
             // Move all cards on table to given table, then destroy them

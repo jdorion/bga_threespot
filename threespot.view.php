@@ -53,6 +53,7 @@
         }
         // this will make our My Hand text translatable
         $this->tpl['MY_HAND'] = self::_("My hand");
+        $this->tpl['HAND_INFO'] = self::_("Hand info");
 
         /*
         

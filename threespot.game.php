@@ -162,6 +162,15 @@ class ThreeSpot extends Table
                 
         // Cards played on the table
         $result['cardsontable'] = $this->cards->getCardsInLocation( 'cardsontable' );
+
+        // current trump
+        $currentTrumpColor = self::getGameStateValue('handColor');
+        $result['trump'] = $this->colors [$currentTrumpColor] ['name'];
+        
+        // how many tricks team A&B have in the current hand
+        $result['teama'] = self::getGameStateValue('teamA_hand_points');
+        $result['teamb'] = self::getGameStateValue('teamB_hand_points');
+
         return $result;
     }
 
@@ -417,15 +426,19 @@ class ThreeSpot extends Table
             // Note: we use 2 notifications here in order we can pause the display during the first notification
             //  before we move all cards to the winner (during the second)
             $players = self::loadPlayersBasicInfos();
-            $trump = ($trumpHasBeenPlayed || ($currentTrickColor == $currentTrumpColor)) ? "(trump)" : "";
+            $trumpText = ($trumpHasBeenPlayed || ($currentTrickColor == $currentTrumpColor)) ? "(trump)" : "";
 
-            self::notifyAllPlayers( 'trickWin', clienttranslate('${player_name} wins the trick with ${card_value}${card_color} ${trump} for ${points} points'), array(
+
+            self::notifyAllPlayers( 'trickWin', clienttranslate('${player_name} wins the trick with ${card_value}${card_color} ${trumpText} for ${points} points'), array(
                 'player_id' => $best_value_player_id,
                 'player_name' => $players[ $best_value_player_id ]['player_name'],
                 'card_value' => $this->values_label [$best_value],
                 'card_color' => $this->colors [$best_color] ['name'],
-                'trump' => $trump,
-                'points' => $points
+                'trumpText' => $trumpText,
+                'points' => $points,
+                'trump' => $this->colors [$currentTrumpColor] ['name'],
+                'teama' => self::getGameStateValue('teamA_hand_points'),
+                'teamb' => self::getGameStateValue('teamB_hand_points')
             ) );          
 
             self::notifyAllPlayers( 'giveAllCardsToPlayer','', array(

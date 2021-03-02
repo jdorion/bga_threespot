@@ -24,6 +24,10 @@
     
     Please REMOVE this comment before publishing your game on BGA
 -->
+<div id="handinfo_wrap" class="whiteblock">
+    <h3>{HAND_INFO}
+</div>
+
 <div id="playertables">
 
     <!-- BEGIN player -->
@@ -49,6 +53,8 @@
 // Javascript HTML templates
 var jstpl_cardontable = '<div class="cardontable" id="cardontable_${player_id}" style="background-position:-${x}px -${y}px">\
                         </div>';
+
+var jstpl_handinfo = '<div id="handinfo">Trump: ${trump}<br/>Team A tricks: ${teama}<br/>Team B tricks: ${teamb}<br/></div>';
 /*
 // Example:
 var jstpl_some_game_item='<div class="my_game_item" id="my_game_item_${MY_ITEM_ID}"></div>';
