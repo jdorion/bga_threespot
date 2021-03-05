@@ -29,8 +29,14 @@
    PRIMARY KEY (`card_id`)
  ) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;
 
-ALTER TABLE `player` ADD `player_first` BOOLEAN NOT NULL DEFAULT '0';
+CREATE TABLE IF NOT EXISTS `bid` (
+  `bid_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `bid_value` int(2) NOT NULL,
+  `no_trump` int(2) NOT NULL,
+  `label` varchar(24) NOT NULL,
+  PRIMARY KEY (`bid_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;
 
 -- Example 2: add a custom field to the standard "player" table
 -- ALTER TABLE `player` ADD `player_my_custom_field` INT UNSIGNED NOT NULL DEFAULT '0';
-
+ALTER TABLE `player` ADD `player_first` BOOLEAN NOT NULL DEFAULT '0';

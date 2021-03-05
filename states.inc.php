@@ -59,7 +59,6 @@ $machinestates = array(
         "transitions" => array( "" => 20 )
     ),
     
-    
     /// New hand
     20 => array(
         "name" => "newHand",
@@ -67,8 +66,33 @@ $machinestates = array(
         "type" => "game",
         "action" => "stNewHand",
         "updateGameProgression" => true,   
-        "transitions" => array( "" => 30 )
-    ),          
+        "transitions" => array( "" => 21 )
+    ),
+    21 => array(
+        "name" => "biddingTurn",
+        "description" => clienttranslate('${actplayer} must bid'),
+        "descriptionmyturn" => clienttranslate('${you} must bid'),
+        "type" => "activeplayer",
+        "args" => "argBiddingTurn",
+        "possibleactions" => array( "makeBid" ),
+        "transitions" => array( "makeBid" => 22)
+    ),
+    22 => array(
+        "name" => "nextBid",
+        "description" => "",
+        "type" => "game",
+        "action" => "stNextBid",
+        "transitions" => array( "makeBid" => 21, "settingTrump" => 23, )
+    ), 
+    23 => array(
+        "name" => "settingTrump",
+        "description" => clienttranslate('${actplayer} must pick a trump'),
+        "descriptionmyturn" => clienttranslate('${you} must pick a trump'),
+        "type" => "activeplayer",
+        "args" => "argSettingTrump",
+        "possibleactions" => array( "setTrump" ),
+        "transitions" => array( "newTrick" => 30 )
+    ),
     
     // Trick
     30 => array(

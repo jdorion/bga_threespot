@@ -38,7 +38,11 @@ class ThreeSpot extends Table
                          "teamA_hand_points" => 12,
                          "teamB_hand_points" => 13,
                          "teamA1" => 14,
-                         "teamA2" => 15
+                         "teamA2" => 15,
+                         "dealerPlayerID" => 16,
+                         "bestBidder" => 17,
+                         "bestBid" => 18,
+                         "numBids" => 19
                           ) );
 
         $this->cards = self::getNew( "module.common.deck" );
@@ -61,6 +65,19 @@ class ThreeSpot extends Table
     */
     protected function setupNewGame( $players, $options = array() )
     {    
+
+
+        // Retrieve inital player order ([0=>playerId1, 1=>playerId2, ...])
+        $playerInitialOrder = [];
+        foreach ($players as $playerId => $player) {
+            $playerInitialOrder[$player['player_table_order']] = $playerId;
+        }
+        ksort($playerInitialOrder);
+        $playerInitialOrder = array_flip(array_values($playerInitialOrder));
+
+        // Player order based on 'playerTeams' option
+        $playerOrder = [0, 1, 2, 3];
+
         // Set the colors of the players with HTML color code
         // The default below is red/green/blue/orange/brown
         // The number of colors defined here must correspond to the maximum number of players allowed for the gams
@@ -69,12 +86,23 @@ class ThreeSpot extends Table
  
         // Create players
         // Note: if you added some extra field on "player" table in the database (dbmodel.sql), you can initialize it there.
-        $sql = "INSERT INTO player (player_id, player_color, player_canal, player_name, player_avatar) VALUES ";
+        $sql = "INSERT INTO player (player_id, player_color, player_canal, player_name, player_avatar, player_no) VALUES ";
         $values = array();
         foreach( $players as $player_id => $player )
         {
             $color = array_shift( $default_colors );
-            $values[] = "('".$player_id."','$color','".$player['player_canal']."','".addslashes( $player['player_name'] )."','".addslashes( $player['player_avatar'] )."')";
+            $values[] = 
+                "('" .
+                $player_id .
+                "','$color','" .
+                $player['player_canal'] .
+                "','" .
+                addslashes( $player['player_name'] ) .
+                "','" .
+                addslashes( $player['player_avatar'] ) .
+                "','" .
+                $playerOrder[$playerInitialOrder[$player_id]] .
+                "')";
         }
         $sql .= implode( $values, ',' );
         self::DbQuery( $sql );
@@ -83,22 +111,6 @@ class ThreeSpot extends Table
         
         /************ Start the game initialization *****/
         // Init global values with their initial values
-
-        // Set trump of the hand to zero (= no trump yet, will eventually be set in the bidding process)
-        self::setGameStateInitialValue( 'handColor', 0 );        
-        // Set current trick color to zero (= no trick color)
-        self::setGameStateInitialValue( 'trickColor', 0 );
-        // set the total hand points for each team to 0;
-        self::setGameStateInitialValue('teamA_hand_points', 0);
-        self::setGameStateInitialValue('teamB_hand_points', 0);
-        
-        // initialize team members
-        // TO DO: fix this to take into account player order after that's added as an option
-        $keys = array_keys($players);
-        self::setGameStateInitialValue('teamA1', $keys[0]);
-        self::setGameStateInitialValue('teamA2', $keys[2]);
-
-
 
         // Create cards
         $cards = array ();
@@ -119,20 +131,70 @@ class ThreeSpot extends Table
         
         $this->cards->createCards( $cards, 'deck' );
 
+
+        // create bids
+        // TODO: make min_bid configurable from game options
+        $min_bid = 7;
+        $sql = "INSERT INTO bid (bid_value, no_trump, label) VALUES";
+        $values = array();
+        // pass bid
+        $values[] = "('0', '0', 'Pass')";
+        for ($x = $min_bid; $x <= 10; $x++) {
+            // add regular bid
+            $values[] = "('$x', '0', '$x')";
+            // add no-trump bid
+            $values[] = "('$x', '1', '$x - no trump')";
+        }
+        // three spot bids (auto-win if successful)
+        $values[] = "('12', '0', 'Three spot')";
+        $values[] = "('12', '1', 'Three spot - no trump')";
+
+        $sql .= implode ( $values, ',' );
+        self::DbQuery( $sql );
+
+
         // Init global values with their initial values
-        //self::setGameStateInitialValue( 'my_first_global_variable', 0 );
-        
+
+        // Set trump of the hand to zero (= no trump yet, will eventually be set in the bidding process)
+        self::setGameStateInitialValue( 'handColor', 0 );        
+        // Set current trick color to zero (= no trick color)
+        self::setGameStateInitialValue( 'trickColor', 0 );
+        // set the total hand points for each team to 0;
+        self::setGameStateInitialValue('teamA_hand_points', 0);
+        self::setGameStateInitialValue('teamB_hand_points', 0);
+        // set bid globals
+        self::setGameStateInitialValue('bestBidder', 0);
+        self::setGameStateInitialValue('bestBid', 0);
+        self::setGameStateInitialValue('numBids', 0);
+
+        // initialize team members
+        $orderedPlayers = self::loadPlayersBasicInfos();
+        $keys = array_keys($orderedPlayers);
+        self::setGameStateInitialValue('teamA1', $keys[0]);
+        self::setGameStateInitialValue('teamA2', $keys[2]);
+        // set the dealer to player 1
+        // TO DO: randomize this
+        self::setGameStateInitialValue('dealerPlayerID', $keys[0]);
+
         // Init game statistics
         // (note: statistics used in this file must be defined in your stats.inc.php file)
         //self::initStat( 'table', 'table_teststat1', 0 );    // Init a table statistics
         //self::initStat( 'player', 'player_teststat1', 0 );  // Init a player statistics (for all players)
 
+        // possible stats (table): bids succeeded, 
+        // possible stats (player): total # of tricks won, bids succeeded, taken 5, taken 3, 
+
         // TODO: setup the initial game situation here
-       
-
         // Activate first player (which is in general a good idea :) )
-        $this->activeNextPlayer();
+        
+        // in Three Spot, the first player is the dealer, but the first bidder is the second player so we need to call this twice
+        //$this->activeNextPlayer();
+        //$this->activeNextPlayer();
 
+        // after dealer is randomized, this has to be 'player after dealer'
+        // I think next state might activate the next player anyway, so maybe simply setting it do be dealer id works??
+        $this->gamestate->changeActivePlayer( $keys[0] );
+        $this->gamestate->nextState("");                
         /************ End of the game initialization *****/
     }
 
@@ -165,7 +227,11 @@ class ThreeSpot extends Table
 
         // current trump
         $currentTrumpColor = self::getGameStateValue('handColor');
-        $result['trump'] = $this->colors [$currentTrumpColor] ['name'];
+        if ($currentTrumpColor == 0) {
+            $result['trump'] = "not set";
+        } else {
+            $result['trump'] = $this->colors [$currentTrumpColor] ['name'];
+        }
         
         // how many tricks team A&B have in the current hand
         $result['teama'] = self::getGameStateValue('teamA_hand_points');
@@ -236,14 +302,166 @@ class ThreeSpot extends Table
         return ($player == $teamA1) || ($player == $teamA2);
     }
 
+    function getValidBids($player) {
+
+        $currentBid = self::getCurrentBid();
+        $currentBidValue = $currentBid['bid_value'];
+        $currentBidNoTrump = $currentBid['no_trump'];
+        $allBids = self::getAllBids();
+        $isDealer = $player == self::getGameStateValue('dealerPlayerID');
+        $result = array();
+
+        self::dump("getValidBids player", $player);
+        self::dump('getValidBids isDealer', $isDealer);
+        self::dump('currentBidValue', $currentBidValue);
+        self::dump('currentBidNoTrump', $currentBidNoTrump);
+        foreach ($allBids as $bid_id => $bid ) {
+
+            $value = $bid['bid_value'];
+            $no_trump = $bid['no_trump'];
+
+            // leave pass bid in for all but dealer
+            if ($value == 0) {
+                
+                if ($isDealer) {
+
+                } else {
+                    $result[$bid_id] = $bid;
+                }
+                
+                
+            } else if ($value > $currentBidValue) {
+                // a higher bet is always valid
+                $result[$bid_id] = $bid;
+            } else if ($value == $currentBidValue && $no_trump == 0 && $currentBidNoTrump == 0) {
+
+                // if this is a regular bid, a NoTrump bid outranks it and is valid to add
+
+                // dealer can take existing bids, so just add it
+                if ($isDealer) {
+                    $result[$bid_id] = $bid;
+                } else {
+
+                    // only add if it's a no trump bid
+                    if ($no_trump == 1) {
+                        $result[$bid_id] = $bid;
+                    }
+                }
+            } else if ($value == $currentBidValue && $no_trump == 1 && $currentBidNoTrump == 1) {
+
+                // if this is a no trump bid, only dealer can add it
+                // dealer can take existing bids, so just add it
+                if ($isDealer) {
+                    $result[$bid_id] = $bid;
+                }
+            }
+        }
+
+        return $result;
+    }
+
+    function getAllBids() {
+        //self::getCollectionFromDB( "SELECT player_id id, player_name name, player_score score FROM player" );
+        //Result:
+        //array(
+        // 1234 => array( 'id'=>1234, 'name'=>'myuser0', 'score'=>1 ),
+        // 1235 => array( 'id'=>1235, 'name'=>'myuser1', 'score'=>0 )
+        //)
+
+        $result = self::getCollectionFromDB("SELECT bid_id bid_id, bid_value bid_value, no_trump no_trump, label label FROM bid");
+        return $result;
+    }
+
+    function getBid($bid_id) {
+        //self::getObjectFromDB( "SELECT player_id id, player_name name, player_score score FROM player WHERE player_id='$player_id'" );
+        //Result:
+        //array(
+        //    'id'=>1234, 'name'=>'myuser0', 'score'=>1 
+        //)
+
+        $result = self::getObjectFromDB( "SELECT bid_id bid_id, bid_value bid_value, no_trump no_trump, label label FROM bid WHERE bid_id = $bid_id " );
+        return $result;        
+    }
+
+    function getCurrentBid() {
+        return self::getBid(self::getGameStateValue('bestBid'));
+    }
+
+    function isPassingBid($bid_id) {
+        $bid = self::getBid($bid_id);
+        return $bid['bid_value'] == 0;
+    }
+
 //////////////////////////////////////////////////////////////////////////////
 //////////// Player actions
 //////////// 
-
     /*
         Each time a player is doing some game action, one of the methods below is called.
         (note: each method below must match an input method in threespot.action.php)
     */
+    function makeBid($bid_id) {
+        self::checkAction("makeBid");
+        $player_id = self::getActivePlayerId();
+        $bid = self::getBid($bid_id);
+        $validBids = self::getValidBids($player_id);
+        if (in_array($bid, $validBids)) {
+
+            // increment number of bids even if it's a pass (it's how we have to check if everyone has bid)
+            $numBids = self::getGameStateValue('numBids');
+            self::SetGameStateValue('numBids', $numBids + 1);
+            
+            // if it's a pass, no need to set anything
+            if (self::isPassingBid($bid_id)) {
+                // notify
+                self::notifyAllPlayers(
+                    'bidMade', 
+                    clienttranslate('${player_name} passes.'), 
+                    array (
+                        'player_name' => self::getActivePlayerName(),
+                    )
+                );
+            } else {
+                // if this wasn't a pass, save bidder and bid id 
+                // (the only valid bids apart from pass are higher than what was already bid)
+                self::setGameStateValue('bestBidder', $player_id);
+                self::setGameStateValue('bestBid', $bid_id);
+                
+                self::dump('bid made. bestBidder', $player_id);
+                self::dump('bid made. bid id', $bid_id);
+                // And notify
+                self::notifyAllPlayers(
+                    'bidMade', 
+                    clienttranslate('${player_name} bids ${label}'), 
+                    array (
+                        'player_name' => self::getActivePlayerName(),
+                        'label' => $bid['label'],
+                    )
+                );
+            }
+
+            // Next player
+            $this->gamestate->nextState('makeBid');
+        } else {
+            self::dump( 'bid id', $bid_id );
+            throw new feException( self::_("You are not allowed to make that bid!"), true );
+        }
+    }
+
+    function setTrump($trump_id) {
+        self::checkAction("setTrump");
+        //$player_id = self::getActivePlayerId();
+        
+        if ((1 <= $trump_id) && ($trump_id <= 4)) {
+            // set the trump global variable
+            self::setGameStateInitialValue('handColor', $trump_id);
+            
+            // Next player
+            $this->gamestate->nextState('newTrick');
+        } else {
+            throw new feException( self::_("Invalid trump set! " + $trump_id), true );
+        }
+    }
+
     function playCard($card_id) {
         self::checkAction("playCard");
         $player_id = self::getActivePlayerId();
@@ -292,7 +510,6 @@ class ThreeSpot extends Table
         } else {
             throw new feException( self::_("You can't play that card - you must follow suit if possible."), true );
         }
-
     }
 
     
@@ -315,7 +532,45 @@ class ThreeSpot extends Table
     $result = array();
     $result['cards'] = self::getValidCards($player_id);
 
-    self::dump( 'cards', $result );
+    //self::dump( 'cards', $result );
+    return $result;
+  }
+
+  function argBiddingTurn() {
+    $player_id = self::getActivePlayerId();
+    
+    $players = self::loadPlayersBasicInfos();
+    $firstBidder = $players[self::getActivePlayerId()];
+    $dealerPlayer = $players[self::getGameStateValue('dealerPlayerID')];
+    $teamA1 = $players[self::getGameStateValue('teamA1')];
+    $teamA2 = $players[self::getGameStateValue('teamA2')];
+    self::debug('New Hand');
+    self::dump('current bidder: ', $firstBidder['player_name']);
+    self::dump('dealer: ', $dealerPlayer['player_name']);
+    self::dump('teamA1: ', $teamA1['player_name']);
+    self::dump('teamA2: ', $teamA2['player_name']);
+    self::dump('numBids', self::getGameStateValue('numBids'));
+
+    // check existing bid and only return 'Pass' / valid bids / take current bid (if dealer)
+    $result = array();
+    $result['bids'] = self::getValidBids($player_id);
+
+    //self::dump( 'bids', $result );
+    return $result;
+  }
+
+  function argSettingTrump() {
+    $result = array();
+
+    // pass list of suits
+    $suits = array(
+        1 => '♠ - spades',
+        2 => '♥ - hearts',
+        3 => '♣ - clubs',
+        4 => '♦ - diamonds'
+    );
+
+    $result['suits'] = $suits;
     return $result;
   }
 
@@ -330,13 +585,22 @@ class ThreeSpot extends Table
 
     function stNewHand() {
 
-        // reset hand point total
+        // reset hand point total and trump
         self::setGameStateInitialValue('teamA_hand_points', 0);
         self::setGameStateInitialValue('teamB_hand_points', 0);
+        self::setGameStateInitialValue('handColor', 0);
+
+        // reset the bid globals
+        self::setGameStateInitialValue('bestBidder', 0);
+        self::setGameStateInitialValue('bestBid', 0);
+        self::setGameStateInitialValue('numBids', 0);
+
+
 
         // Take back all cards (from any location => null) to deck
         $this->cards->moveAllCardsInLocation(null, "deck");
         $this->cards->shuffle('deck');
+
         // Deal 8 cards to each players
         // Create deck, shuffle it and give 8 initial cards
         $players = self::loadPlayersBasicInfos();
@@ -346,11 +610,31 @@ class ThreeSpot extends Table
             self::notifyPlayer($player_id, 'newHand', '', array ('cards' => $cards ));
         }
 
-        // TODO: fix this, setting trump to be hearts by default
-        self::setGameStateInitialValue('handColor', 2);
-        
-
+        // the correct player was set in stEndHand(), so switch state to ask them to bid
         $this->gamestate->nextState("");
+    }
+
+    function stNextBid() {
+
+        $numBids = self::getGameStateValue('numBids');
+
+        // if dealer has bid, then get bidwinner to set trump
+        //if ($player_id == self::getGameStateValue('dealerPlayerID')) {
+        if ($numBids == 4) {
+
+            $bestBidder = self::getGameStateValue('bestBidder');
+
+            // ask bid winner to set trump
+            $this->gamestate->changeActivePlayer($bestBidder);
+            self::giveExtraTime($bestBidder);
+            $this->gamestate->nextState('settingTrump');
+        } else {
+
+            // otherwise, move onto the next player to continue bidding
+            $player_id = self::activeNextPlayer();
+            self::giveExtraTime($player_id);
+            $this->gamestate->nextState('makeBid');
+        }
     }
 
     function stNewTrick() {
@@ -505,6 +789,14 @@ class ThreeSpot extends Table
             }
         }
 
+        // change the dealer to be the player after the dealer
+        $currentDealerID = self::getGameStateValue("dealerPlayerID");
+        $this->gamestate->changeActivePlayer( $currentDealerID );
+        $currentDealerID = self::activeNextPlayer();
+        self::setGameStateInitialValue('dealerPlayerID', $currentDealerID); 
+
+        // change active player to be the player after the dealer => he's the one who bids first next hand
+        $this->activeNextPlayer();
         
         $this->gamestate->nextState("nextHand");
     }

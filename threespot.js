@@ -108,6 +108,7 @@ function (dojo, declare) {
             this.setupNotifications();
 
             console.log( "Ending game setup" );
+ 
         },
        
 
@@ -129,20 +130,55 @@ function (dojo, declare) {
                     } else {
                         dojo.query("#myhand .stockitem").removeClass("stockitem_selectable").addClass("stockitem_unselectable");
                     }
+
                 break;
             
-            /* Example:
-            
-            case 'myGameState':
-            
-                // Show some HTML block at this game state
-                dojo.style( 'my_html_block_id', 'display', 'block' );
-                
+                case 'biddingTurn':
+                    if (this.isCurrentPlayerActive()) {
+                        var action = "makeBid";
+
+                        var bids = this.convertToBidObjects(args.args.bids);
+                        window.bids = bids;
+
+                        // get bids from args.args and turn into an array
+                        this.multipleChoiceDialog(
+                            _("What's your bid?"), bids,
+                            dojo.hitch(this, function (choice) {
+                                console.log('choice: ' + choice);
+                                var bidchoice = bids[choice];
+                                window.bidchoice = bidchoice;
+                                var bidId = parseInt(bidchoice.bid_id);
+                                window.bidId = bidId;
+                                console.log('dialog callback with ' + bids[choice] + ", id: " + bidId);
+                                this.ajaxcall("/" + this.game_name + "/" + this.game_name + "/" + action + ".html", { id: bidId }, this, function (result) { });
+                            }));
+                    } else {
+                        dojo.query("#myhand .stockitem").removeClass("stockitem_selectable").addClass("stockitem_unselectable");
+                    }
+
                 break;
-           */
-           
-           
-            case 'dummmy':
+
+                case 'settingTrump':
+                    if (this.isCurrentPlayerActive()) {
+                        var action = "setTrump";
+
+                        window.settingTrumpArgs = args;
+                        var suits = args.args.suits;
+                        window.suits = suits;
+
+                        this.multipleChoiceDialog(
+                            _('Pick trump'), suits,
+                            dojo.hitch(this, function (choice) {
+                                console.log('choice: ' + choice)
+                                window.choice = choice;
+                                var suitchoice = suits[choice];
+                                window.suitchoice = suitchoice;
+                                console.log('dialog callback with ' + choice);
+                                this.ajaxcall("/" + this.game_name + "/" + this.game_name + "/" + action + ".html", { id: choice }, this, function (result) { });
+                            }));
+                    } else {
+                        dojo.query("#myhand .stockitem").removeClass("stockitem_selectable").addClass("stockitem_unselectable");
+                    }
                 break;
             }
         },
@@ -263,6 +299,33 @@ function (dojo, declare) {
             }), 'handinfo_wrap');
         },
 
+        convertToBidObjects : function (bidArray) {
+            class Bid {
+                constructor(bid) {
+                    this.bid_id = bid.bid_id;
+                    this.bid_value = bid.bid_value;
+                    this.no_trump = bid.no_trump;
+                    this.label = bid.label;
+                }
+
+                toString() {
+                    return this.label;
+                }
+            }
+
+            console.log(bidArray);
+            window.bidArray = bidArray;
+            console.log('bidarray length: ' + bidArray.length);
+            var result = {};
+            for (var key in bidArray) {
+                result[key] = new Bid(bidArray[key]);
+            }
+
+            //let result = [];
+            //bidArray.forEach((bid) => result.push(new Bid(bid)));
+            return result;
+        },
+
         ///////////////////////////////////////////////////
         //// Player's action
         
@@ -324,6 +387,8 @@ function (dojo, declare) {
             this.notifqueue.setSynchronous( 'trickWin', 1000 );
             dojo.subscribe( 'giveAllCardsToPlayer', this, "notif_giveAllCardsToPlayer" );
             dojo.subscribe( 'newScores', this, "notif_newScores" );
+            dojo.subscribe('bidMade', this, "notif_bidMade");
+            dojo.subscribe('trumpSet', this, "notif_trumpSet");
         },  
         
         // TODO: from this point and below, you can write your game notifications handling methods
@@ -338,7 +403,6 @@ function (dojo, declare) {
                 this.playerHand.addToStockWithId(this.getCardUniqueId(color, value), card.id);
             }
         },
-
         notif_playCard : function(notif) {
             // Play a card on the table
             this.playCardOnTable(notif.args.player_id, notif.args.color, notif.args.value, notif.args.card_id);
@@ -364,5 +428,11 @@ function (dojo, declare) {
                 this.scoreCtrl[player_id].toValue(notif.args.newScores[player_id]);
             }
         },
+        notif_bidMade : function(notif) {
+            // nothing for now, could update hand info in future??
+        },
+        notif_trumpSet : function(notif) {
+            // nothing for now, could update hand info in future??
+        }
    });             
 });

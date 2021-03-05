@@ -47,5 +47,18 @@
       self::ajaxResponse();
     } 
 
+    public function makeBid() {
+      self::setAjaxMode();
+      $bid_id = self::getArg("id", AT_posint, true);
+      $this->game->makeBid($bid_id);
+      self::ajaxResponse();    
+    }
+
+    public function setTrump() {
+      self::setAjaxMode();
+      $trump_id = self::getArg("id", AT_posint, true);
+      $this->game->setTrump($trump_id);
+      self::ajaxResponse();        
+    }
   }
   
