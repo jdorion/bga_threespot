@@ -76,15 +76,12 @@ function (dojo, declare) {
             window.gamedatas = this.gamedatas;
 
             // Cards in player's hand
-            // here we need to check if the card in the hand is the 3 or 5 and change the id
             for ( var i in this.gamedatas.hand) {
                 var card = this.gamedatas.hand[i];
                 var color = card.type;
                 var value = card.type_arg;
 
                 var uniqueId = this.getCardUniqueId(color, value);
-                if (value == 3 && color == 1) { uniqueId = 0;}
-                if (value == 5 && color == 2) { uniqueId = 8;}
                 this.playerHand.addToStockWithId(uniqueId, card.id);
             }
 
@@ -102,7 +99,8 @@ function (dojo, declare) {
             dojo.connect( this.playerHand, 'onChangeSelection', this, 'onPlayerHandSelectionChanged' );
  
             // hand info
-            this.replaceHandInfo(gamedatas.trump, gamedatas.teama, gamedatas.teamb)
+            this.replaceHandInfo(gamedatas.biddingTeam, gamedatas.trump, gamedatas.bet);
+            this.replaceTrickCount(gamedatas.teama, gamedatas.teamb);
 
             // Setup game notifications to handle (see "setupNotifications" method below)
             this.setupNotifications();
@@ -246,7 +244,10 @@ function (dojo, declare) {
         
         */
         // Get card unique identifier based on its color and value
+        // here we need to check if the card in the hand is the 3 or 5 and change the id
         getCardUniqueId : function(color, value) {
+            if (value == 3 && color == 1) { return  0;}
+            if (value == 5 && color == 2) { return  8;}
             return (color - 1) * 8 + (value - 7);
         },
         
@@ -289,14 +290,22 @@ function (dojo, declare) {
             this.slideToObject('cardontable_' + player_id, 'playertablecard_' + player_id).play();
         },
 
-        replaceHandInfo : function (trump, teama, teamb) {
+        replaceHandInfo : function (biddingTeam, trump, bet) {
             // hand info
             dojo.destroy('handinfo')
             dojo.place(this.format_block('jstpl_handinfo', {
+                biddingTeam: biddingTeam,
                 trump : trump,
+                bet: bet,
+            }), 'handinfo_wrap');
+        },
+        replaceTrickCount : function (teama, teamb) {
+            // hand info
+            dojo.destroy('trickcount')
+            dojo.place(this.format_block('jstpl_trickcount', {
                 teama : teama,
                 teamb : teamb
-            }), 'handinfo_wrap');
+            }), 'trickcount_wrap');
         },
 
         convertToBidObjects : function (bidArray) {
@@ -409,7 +418,7 @@ function (dojo, declare) {
         },
         notif_trickWin : function(notif) {
             // Update hand info to show updated trick score
-            this.replaceHandInfo(notif.args.trump, notif.args.teama, notif.args.teamb) 
+            this.replaceTrickCount(notif.args.teama, notif.args.teamb);
         },
         notif_giveAllCardsToPlayer : function(notif) {
             // Move all cards on table to given table, then destroy them
@@ -433,6 +442,7 @@ function (dojo, declare) {
         },
         notif_trumpSet : function(notif) {
             // nothing for now, could update hand info in future??
+            this.replaceHandInfo(notif.args.biddingTeam, notif.args.trump, notif.args.bet);
         }
    });             
 });

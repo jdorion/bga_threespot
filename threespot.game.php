@@ -227,11 +227,33 @@ class ThreeSpot extends Table
 
         // current trump
         $currentTrumpColor = self::getGameStateValue('handColor');
+        $currentBid = self::getGameStateValue('bestBid');
+        $bestBidder = self::getGameStateValue('bestBidder');
+
+        if (self::isTeamA($bestBidder)) {
+            $result['biddingTeam'] = "Team A";
+        } else {
+            $result['biddingTeam'] = "Team B";
+        }
+
+        if ($currentBid == 0) {
+            $result['bet'] = "not set";
+        } else {
+            $bid = self::getBid($currentBid);
+            $result['bet'] = $bid['bid_value'];
+        }
+
         if ($currentTrumpColor == 0) {
-            $result['trump'] = "not set";
+            if ($currentBid == 0) {
+                $result['trump'] = "not set";
+            } else {
+                $result['trump'] = "No trump";
+            }
         } else {
             $result['trump'] = $this->colors [$currentTrumpColor] ['name'];
         }
+        
+
         
         // how many tricks team A&B have in the current hand
         $result['teama'] = self::getGameStateValue('teamA_hand_points');
@@ -305,53 +327,41 @@ class ThreeSpot extends Table
     function getValidBids($player) {
 
         $currentBid = self::getCurrentBid();
-        $currentBidValue = $currentBid['bid_value'];
-        $currentBidNoTrump = $currentBid['no_trump'];
+        $currentBidId = (is_null($currentBid)) ? 0 : $currentBid['bid_id'];
+        $currentBidValue = (is_null($currentBid)) ? 0 : $currentBid['bid_value'];
         $allBids = self::getAllBids();
         $isDealer = $player == self::getGameStateValue('dealerPlayerID');
         $result = array();
 
         self::dump("getValidBids player", $player);
         self::dump('getValidBids isDealer', $isDealer);
+        self::dump('current bid', $currentBid);
+        self::dump('currentBidId', $currentBidId);
         self::dump('currentBidValue', $currentBidValue);
-        self::dump('currentBidNoTrump', $currentBidNoTrump);
+
+        // this is dependent on bid ids being set in ascending order
         foreach ($allBids as $bid_id => $bid ) {
 
+            $bid_id = $bid['bid_id'];
             $value = $bid['bid_value'];
             $no_trump = $bid['no_trump'];
 
-            // leave pass bid in for all but dealer
-            if ($value == 0) {
-                
-                if ($isDealer) {
+            // pass bid
+            if ($bid_id == 1) {
 
+                // dealer can pass only if there's an existing bid
+                if ($isDealer && $currentBidValue != 0) {
+                    $result[$bid_id] = $bid;
                 } else {
                     $result[$bid_id] = $bid;
                 }
+            } else {
                 
-                
-            } else if ($value > $currentBidValue) {
-                // a higher bet is always valid
-                $result[$bid_id] = $bid;
-            } else if ($value == $currentBidValue && $no_trump == 0 && $currentBidNoTrump == 0) {
-
-                // if this is a regular bid, a NoTrump bid outranks it and is valid to add
-
-                // dealer can take existing bids, so just add it
-                if ($isDealer) {
+                if ($isDealer && $bid_id >= $currentBidId) {
+                    // dealer can take current bid or any higher bid
                     $result[$bid_id] = $bid;
-                } else {
-
-                    // only add if it's a no trump bid
-                    if ($no_trump == 1) {
-                        $result[$bid_id] = $bid;
-                    }
-                }
-            } else if ($value == $currentBidValue && $no_trump == 1 && $currentBidNoTrump == 1) {
-
-                // if this is a no trump bid, only dealer can add it
-                // dealer can take existing bids, so just add it
-                if ($isDealer) {
+                } else if (!$isDealer && $bid_id > $currentBidId){
+                    // players other than the dealer can only bid higher
                     $result[$bid_id] = $bid;
                 }
             }
@@ -449,11 +459,21 @@ class ThreeSpot extends Table
 
     function setTrump($trump_id) {
         self::checkAction("setTrump");
-        //$player_id = self::getActivePlayerId();
-        
+        $player_id = self::getActivePlayerId();
+        $players = self::loadPlayersBasicInfos();
+        $bid = self::getBid(self::getGameStateValue( 'bestBid' ));
+
         if ((1 <= $trump_id) && ($trump_id <= 4)) {
             // set the trump global variable
             self::setGameStateInitialValue('handColor', $trump_id);
+            
+            //notify all players to update the handinfo div with the new hand info
+            self::notifyAllPlayers( 'trumpSet', clienttranslate('${player_name} has won the bet with ${bet}, trump is ${trump}'), array(
+                'player_name' => $players[ $player_id ]['player_name'],
+                'biddingTeam' => (self::isTeamA($player_id)) ? "Team A" : "Team B",
+                'bet' => $bid['bid_value'],
+                'trump' => $this->colors [$trump_id] ['name']
+            ) );  
             
             // Next player
             $this->gamestate->nextState('newTrick');
@@ -623,11 +643,39 @@ class ThreeSpot extends Table
         if ($numBids == 4) {
 
             $bestBidder = self::getGameStateValue('bestBidder');
+            $bid = self::getBid(self::getGameStateValue( 'bestBid' ));
 
-            // ask bid winner to set trump
-            $this->gamestate->changeActivePlayer($bestBidder);
-            self::giveExtraTime($bestBidder);
-            $this->gamestate->nextState('settingTrump');
+            // if this was a trump bid, ask bid winner to set trump
+            if ($bid['no_trump'] == 0) {
+
+                self::debug('setting trump');
+                // ask bid winner to set trump
+                $this->gamestate->changeActivePlayer($bestBidder);
+                self::giveExtraTime($bestBidder);
+                $this->gamestate->nextState('settingTrump');
+            } else {
+            // otherwise, notify all players about the winning bet and no trump, go directly to new trick
+
+                $players = self::loadPlayersBasicInfos();        
+                $player_name = $players[ $bestBidder ]['player_name'];
+                $bid_value = $bid['bid_value'];
+
+                self::dump('player name', $player_name);
+                self::dump('bid value', $bid_value);
+
+                //notify all players to update the handinfo div with the new hand info
+                self::notifyAllPlayers( 'trumpSet', clienttranslate('${player_name} has won the bet with ${bet}, no trump'), array(
+                    'player_name' => $players[ $bestBidder ]['player_name'],
+                    'biddingTeam' => (self::isTeamA($bestBidder)) ? "Team A" : "Team B",
+                    'bet' => $bid['bid_value'],
+                    'trump' => 'No trump'
+                ) );  
+
+                $this->gamestate->changeActivePlayer($bestBidder);
+                self::giveExtraTime($bestBidder);
+                $this->gamestate->nextState('newTrick');
+            }
+
         } else {
 
             // otherwise, move onto the next player to continue bidding
@@ -711,8 +759,9 @@ class ThreeSpot extends Table
             //  before we move all cards to the winner (during the second)
             $players = self::loadPlayersBasicInfos();
             $trumpText = ($trumpHasBeenPlayed || ($currentTrickColor == $currentTrumpColor)) ? "(trump)" : "";
+            $bid = self::getCurrentBid();
 
-
+            $trumpValue = ($currentTrumpColor == 0) ? 'no trump' : $this->colors [$currentTrumpColor] ['name'];
             self::notifyAllPlayers( 'trickWin', clienttranslate('${player_name} wins the trick with ${card_value}${card_color} ${trumpText} for ${points} points'), array(
                 'player_id' => $best_value_player_id,
                 'player_name' => $players[ $best_value_player_id ]['player_name'],
@@ -720,7 +769,8 @@ class ThreeSpot extends Table
                 'card_color' => $this->colors [$best_color] ['name'],
                 'trumpText' => $trumpText,
                 'points' => $points,
-                'trump' => $this->colors [$currentTrumpColor] ['name'],
+                'trump' => $trumpValue,
+                'bet' => $bid['bid_value'],
                 'teama' => self::getGameStateValue('teamA_hand_points'),
                 'teamb' => self::getGameStateValue('teamB_hand_points')
             ) );          

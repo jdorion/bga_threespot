@@ -82,7 +82,7 @@ $machinestates = array(
         "description" => "",
         "type" => "game",
         "action" => "stNextBid",
-        "transitions" => array( "makeBid" => 21, "settingTrump" => 23, )
+        "transitions" => array( "makeBid" => 21, "settingTrump" => 23, "newTrick" => 30)
     ), 
     23 => array(
         "name" => "settingTrump",

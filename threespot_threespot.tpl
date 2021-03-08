@@ -24,8 +24,10 @@
     
     Please REMOVE this comment before publishing your game on BGA
 -->
-<div id="handinfo_wrap" class="whiteblock">
-    <h3>{HAND_INFO}
+<div id="handinfo_div" class="whiteblock">
+    <h3>{HAND_INFO}</h3>
+    <div id="handinfo_wrap"></div>
+    <div id="trickcount_wrap"></div>
 </div>
 
 <div id="playertables">
@@ -54,7 +56,8 @@
 var jstpl_cardontable = '<div class="cardontable" id="cardontable_${player_id}" style="background-position:-${x}px -${y}px">\
                         </div>';
 
-var jstpl_handinfo = '<div id="handinfo">Trump: ${trump}<br/>Team A tricks: ${teama}<br/>Team B tricks: ${teamb}<br/></div>';
+var jstpl_handinfo = '<div id="handinfo">Bidding team: ${biddingTeam}<br/>Bet: ${bet}<br/>Trump: ${trump}<br/></div>';
+var jstpl_trickcount = '<div id="trickcount"><br/>Team A tricks won: ${teama}<br/>Team B tricks won: ${teamb}<br/></div>';
 /*
 // Example:
 var jstpl_some_game_item='<div class="my_game_item" id="my_game_item_${MY_ITEM_ID}"></div>';
