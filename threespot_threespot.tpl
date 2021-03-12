@@ -58,6 +58,8 @@ var jstpl_cardontable = '<div class="cardontable" id="cardontable_${player_id}" 
 
 var jstpl_handinfo = '<div id="handinfo">Bidding team: ${biddingTeam}<br/>Bet: ${bet}<br/>Trump: ${trump}<br/></div>';
 var jstpl_trickcount = '<div id="trickcount"><br/>Team A tricks won: ${teama}<br/>Team B tricks won: ${teamb}<br/></div>';
+var jstpl_player_board = '<div class="cp_board" id="cp_p${id}"><span id="team_p${id}">${team}</span><br/><span id="dealer_p${id}">${dealer}</span></div>';
+var jstpl_pb_dealer = '<span id="dealer_p${id}">${dealer}</span>';
 /*
 // Example:
 var jstpl_some_game_item='<div class="my_game_item" id="my_game_item_${MY_ITEM_ID}"></div>';

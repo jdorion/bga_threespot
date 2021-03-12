@@ -216,7 +216,27 @@ class ThreeSpot extends Table
         // Get information about players
         // Note: you can retrieve some extra field you added for "player" table in "dbmodel.sql" if you need it.
         $sql = "SELECT player_id id, player_score score FROM player ";
-        $result['players'] = self::getCollectionFromDb( $sql );
+        $players = self::getCollectionFromDb( $sql );
+        
+        $newPlayers = array();
+        // adding team info and if they're the current dealer
+        foreach( $players as $player_id => $player )
+        {
+            if (self::isTeamA($player_id)) {
+                $player['team'] = "Team A";
+            } else {
+                $player['team'] = "Team B";
+            }
+
+            if ($player_id == self::getGameStateValue('dealerPlayerID')) {
+                $player['dealer'] = "Dealer";
+            } else {
+                $player['dealer'] = "";
+            }
+
+            $newPlayers[$player_id] = $player;
+        }
+        $result['players'] = $newPlayers;
   
         // TODO: Gather all information about current game situation (visible by player $current_player_id).
         // Cards in player hand
@@ -288,6 +308,19 @@ class ThreeSpot extends Table
         In this space, you can put any utility methods useful for your game logic
     */
 
+    function getPlayerIds() {
+        $players = self::loadPlayersBasicInfos();
+        $result = array();
+        // adding team info and if they're the current dealer
+        foreach( $players as $player_id => $player )
+        {
+            $result[] = $player_id;
+        }
+
+        self::dump('player ids', $result);
+        return $result;
+    }
+
     // figures out which cards can be played
     function getValidCards($player_id) {
         $hand = $this->cards->getCardsInLocation( 'hand', $player_id );
@@ -350,8 +383,10 @@ class ThreeSpot extends Table
             if ($bid_id == 1) {
 
                 // dealer can pass only if there's an existing bid
-                if ($isDealer && $currentBidValue != 0) {
-                    $result[$bid_id] = $bid;
+                if ($isDealer) {
+                    if ($currentBidValue != 0) {
+                        $result[$bid_id] = $bid;
+                    }
                 } else {
                     $result[$bid_id] = $bid;
                 }
@@ -629,6 +664,12 @@ class ThreeSpot extends Table
             // Notify player about his cards
             self::notifyPlayer($player_id, 'newHand', '', array ('cards' => $cards ));
         }
+
+        // update the dealer flag on the player panel
+        self::notifyAllPlayers( 'newDealer', '', array(
+            'id' => self::getGameStateValue('dealerPlayerID'),
+            'playerIds' => self::getPlayerIds(),
+            ) ); 
 
         // the correct player was set in stEndHand(), so switch state to ask them to bid
         $this->gamestate->nextState("");

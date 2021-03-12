@@ -46,11 +46,17 @@ function (dojo, declare) {
         {
             console.log( "Starting game setup" );
             
+            window.gamedataplayers = gamedatas.players;
             // Setting up player boards
             for( var player_id in gamedatas.players )
             {
                 var player = gamedatas.players[player_id];
+                
+                // Setting up players boards if needed
+                var player_board_div = $('player_board_'+player_id);
+                dojo.place( this.format_block('jstpl_player_board', player ), player_board_div );
             }
+            
             
             // TODO: Set up your game interface here, according to "gamedatas"
             // Player hand
@@ -307,7 +313,22 @@ function (dojo, declare) {
                 teamb : teamb
             }), 'trickcount_wrap');
         },
+        replaceDealerFlag : function (dealerId, playerIds) {
+            var id;
+            while (id = playerIds.pop()) {
 
+                var dealerText = "";
+                if (id == dealerId) {
+                    dealerText = "Dealer";
+                }
+                
+                dojo.destroy('dealer_p' + id);
+                dojo.place(this.format_block('jstpl_pb_dealer', {
+                    id: id,
+                    dealer: dealerText
+                }), 'cp_p' + id);
+            }
+        },
         convertToBidObjects : function (bidArray) {
             class Bid {
                 constructor(bid) {
@@ -398,6 +419,7 @@ function (dojo, declare) {
             dojo.subscribe( 'newScores', this, "notif_newScores" );
             dojo.subscribe('bidMade', this, "notif_bidMade");
             dojo.subscribe('trumpSet', this, "notif_trumpSet");
+            dojo.subscribe('newDealer', this, "notif_newDealer");
         },  
         
         // TODO: from this point and below, you can write your game notifications handling methods
@@ -443,6 +465,9 @@ function (dojo, declare) {
         notif_trumpSet : function(notif) {
             // nothing for now, could update hand info in future??
             this.replaceHandInfo(notif.args.biddingTeam, notif.args.trump, notif.args.bet);
+        },
+        notif_newDealer : function(notif) {
+            this.replaceDealerFlag(notif.args.id, notif.args.playerIds);
         }
    });             
 });
