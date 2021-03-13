@@ -439,7 +439,8 @@ class ThreeSpot extends Table
 
     function calculateBidResult($tricksWon, $bestBid) {
 
-        $tricksWon = (int)$tricksWon;
+        // this cast doesn't work when it's a negative value
+        $tricksWon = intval($tricksWon);
         $bid = self::getBid($bestBid);
         $bidValue = (int)$bid['bid_value'];
 
