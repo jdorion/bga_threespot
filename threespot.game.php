@@ -437,6 +437,33 @@ class ThreeSpot extends Table
         return $bid['bid_value'] == 0;
     }
 
+    function calculateBidResult($tricksWon, $bestBid) {
+
+        $tricksWon = (int)$tricksWon;
+        $bid = self::getBid($bestBid);
+        $bidValue = (int)$bid['bid_value'];
+
+        self::dump('tricks won: ', $tricksWon);
+        self::dump('bid value: ', $bidValue);
+        $result = 0;
+        if ($tricksWon >= $bidValue) {
+            // if they got an amount of tricks greater than or equal to what was bet, 
+            // they should get that amount of points!
+            $result = $tricksWon;
+        } else {
+            // if they didn't make their bid, they get minus bid value points
+            $result = $bidValue * -1;
+        }
+
+        // bidding no-trump means double the result
+        if ($bid['no_trump'] == 1) {
+            $result = $result * 2;       
+        }
+
+        self::dump('result: ', $result);
+        return $result;
+    }
+
 //////////////////////////////////////////////////////////////////////////////
 //////////// Player actions
 //////////// 
@@ -843,6 +870,19 @@ class ThreeSpot extends Table
 
         $teamAHandPoints = self::getGameStateValue('teamA_hand_points');
         $teamBHandPoints = self::getGameStateValue('teamB_hand_points');
+
+        // check who made the bid
+        $bestBidder = self::getGameStateValue('bestBidder');
+        $bestBid = self::getGameStateValue('bestBid');
+
+        // the team that made the bid gets a special calculation
+        // the team that didn't made the bid just gets their total so don't modify
+        if (self::isTeamA($bestBidder)) {
+            $teamAHandPoints = self::calculateBidResult($teamAHandPoints, $bestBid);
+        } else {
+            $teamBHandPoints = self::calculateBidResult($teamAHandPoints, $bestBid);
+        }
+
 
         $player_to_points = array ();
         foreach ( $players as $player_id => $player ) {

@@ -424,7 +424,7 @@ function (dojo, declare) {
         
         // TODO: from this point and below, you can write your game notifications handling methods
         notif_newHand : function(notif) {
-            // We received a new full hand of 13 cards.
+            // We received a new full hand of 8 cards.
             this.playerHand.removeAll();
 
             for ( var i in notif.args.cards) {
