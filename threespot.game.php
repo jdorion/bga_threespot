@@ -470,12 +470,23 @@ class ThreeSpot extends Table
         // this cast doesn't work when it's a negative value
         $tricksWon = intval($tricksWon);
         $bid = self::getBid($bestBid);
-        $bidValue = (int)$bid['bid_value'];
+        $bidValue = intval($bid['bid_value']);
 
         self::dump('tricks won: ', $tricksWon);
         self::dump('bid value: ', $bidValue);
+
+        // threespot bid rule, if you make it you win. If you don't you lose.
+        if ($bidValue == 12) {
+            if ($tricksWon == $bidValue) {
+                return 52;
+            } else {
+                return -52;
+            }
+        }
+
         $result = 0;
         if ($tricksWon >= $bidValue) {
+
             // if they got an amount of tricks greater than or equal to what was bet, 
             // they should get that amount of points!
             $result = $tricksWon;
