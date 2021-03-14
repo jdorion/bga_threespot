@@ -461,8 +461,7 @@ class ThreeSpot extends Table
     }
 
     function isPassingBid($bid_id) {
-        $bid = self::getBid($bid_id);
-        return $bid['bid_value'] == 0;
+        return $bid_id == 1;
     }
 
     function calculateBidResult($tricksWon, $bestBid) {
