@@ -308,6 +308,25 @@ class ThreeSpot extends Table
         In this space, you can put any utility methods useful for your game logic
     */
 
+    // get score
+    function dbGetScore($player_id) {
+        return $this->getUniqueValueFromDB("SELECT player_score FROM player WHERE player_id='$player_id'");
+    }
+    // set score
+    function dbSetScore($player_id, $count) {
+        $this->DbQuery("UPDATE player SET player_score='$count' WHERE player_id='$player_id'");
+    }
+
+    // increment score (can be negative too)
+    function dbIncScore($player_id, $inc) {
+        $count = $this->dbGetScore($player_id);
+        if ($inc != 0) {
+            $count += $inc;
+            $this->dbSetScore($player_id, $count);
+        }
+        return $count;
+    }
+
     function getPlayerIds() {
         $players = self::loadPlayersBasicInfos();
         $result = array();
@@ -355,6 +374,15 @@ class ThreeSpot extends Table
         $teamA1 = self::getGameStateValue('teamA1');
         $teamA2 = self::getGameStateValue('teamA2');
         return ($player == $teamA1) || ($player == $teamA2);
+    }
+
+    function playerIsOnBidWinningTeam($player_id) {
+
+        $bestBidder = self::getGameStateValue('bestBidder');
+        $playerIsTeamA = self::isTeamA($player_id);
+        $bidderIsTeamA = self::isTeamA($bestBidder);
+
+        return $playerIsTeamA == $bidderIsTeamA;
     }
 
     function getValidBids($player) {
@@ -881,7 +909,7 @@ class ThreeSpot extends Table
         if (self::isTeamA($bestBidder)) {
             $teamAHandPoints = self::calculateBidResult($teamAHandPoints, $bestBid);
         } else {
-            $teamBHandPoints = self::calculateBidResult($teamAHandPoints, $bestBid);
+            $teamBHandPoints = self::calculateBidResult($teamBHandPoints, $bestBid);
         }
 
 
@@ -894,15 +922,46 @@ class ThreeSpot extends Table
             }
         }
 
+        $min_bid = 7;
+        $maxScore = 52 - $min_bid;
+
         // Apply scores to player
         foreach ( $player_to_points as $player_id => $points ) {
             if ($points != 0) {
-                $sql = "UPDATE player SET player_score=player_score+$points  WHERE player_id='$player_id'";
-                self::DbQuery($sql);
-                $heart_number = $player_to_points [$player_id];
-                self::notifyAllPlayers("points", clienttranslate('${player_name} gets ${nbr} points'), array (
-                        'player_id' => $player_id,'player_name' => $players [$player_id] ['player_name'],
-                        'nbr' => $heart_number ));
+
+                if (self::playerIsOnBidWinningTeam($player_id)) {
+                    
+                    self::dbIncScore($player_id, $points);
+                    self::notifyAllPlayers("points", clienttranslate('${player_name} gets ${nbr} points'), array (
+                            'player_id' => $player_id,'player_name' => $players [$player_id] ['player_name'],
+                            'nbr' => $points ));
+                } else {
+                    // non-bidding team can only score up to $maxScore
+                    $currentScore = self::dbGetScore($player_id);
+
+                    if ($currentScore == $maxScore) {
+                    // if already at max score, just inform them what they would've scored but dont' adjust score
+                        self::notifyAllPlayers("points", clienttranslate('${player_name} scored ${nbr} points, but hit the max score of ${max}'), array (
+                            'player_id' => $player_id,'player_name' => $players [$player_id] ['player_name'],
+                            'nbr' => $points,
+                            'max' => $maxScore
+                        ));
+                    } else if ($currentScore + $points >= $maxScore) {
+                    // non-bidders can't increase score past $maxScore
+                        self::dbSetScore($player_id, $maxScore);
+                        self::notifyAllPlayers("points", clienttranslate('${player_name} scored ${nbr} points, but hit the max score of ${max}'), array (
+                                'player_id' => $player_id,'player_name' => $players [$player_id] ['player_name'],
+                                'nbr' => $points,
+                                'max' => $maxScore
+                             ));
+                    } else {
+                    // otherwise, just add the pts!
+                        self::dbIncScore($player_id, $points);
+                        self::notifyAllPlayers("points", clienttranslate('${player_name} gets ${nbr} points'), array (
+                                'player_id' => $player_id,'player_name' => $players [$player_id] ['player_name'],
+                                'nbr' => $points ));
+                    }
+                }
             } else {
                 // No point lost (just notify)
                 self::notifyAllPlayers("points", clienttranslate('${player_name} did not gain any points'), array (
@@ -918,6 +977,11 @@ class ThreeSpot extends Table
                 // Trigger the end of the game !
                 $this->gamestate->nextState("endGame");
                 return;
+            } 
+            if ($score <= 52) {
+                // Trigger the end of the game !
+                $this->gamestate->nextState("endGame");
+                return;                
             }
         }
 
