@@ -26,6 +26,26 @@
 
 $game_options = array(
 
+    100 => array(
+        'name' => totranslate('Minimum bid'),
+        'values' => array(
+            1 => array( 'name' => totranslate('5')),
+            2 => array( 'name' => totranslate('6')),
+            3 => array( 'name' => totranslate('7')),
+            4 => array( 'name' => totranslate('8')),
+        ),
+    ),
+
+    101 => array(
+        'name' => totranslate('Teams'),
+        'values' => array(
+            1 => array( 'name' => totranslate('A:1,2 B:3,4')),
+            2 => array( 'name' => totranslate('A:1,3 B:2,4')),
+            3 => array( 'name' => totranslate('A:1,4 B:2,3')),
+        ),
+        'default' => 2
+    ),
+
     /*
     
     // note: game variant ID should start at 100 (ie: 100, 101, 102, ...). The maximum is 199.

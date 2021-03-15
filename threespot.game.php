@@ -42,7 +42,10 @@ class ThreeSpot extends Table
                          "dealerPlayerID" => 16,
                          "bestBidder" => 17,
                          "bestBid" => 18,
-                         "numBids" => 19
+                         "numBids" => 19,
+                         "min_bid" => 20,
+                         "min_bid_option" => 100,
+                         "teams_option" => 101
                           ) );
 
         $this->cards = self::getNew( "module.common.deck" );
@@ -77,6 +80,14 @@ class ThreeSpot extends Table
 
         // Player order based on 'playerTeams' option
         $playerOrder = [0, 1, 2, 3];
+        switch (self::getGameStateValue('teams_option')) {
+            // A:1,2 B:3,4
+            case 1: { $playerOrder = [0, 2, 1, 3]; break; }
+            // A:1,3 B:2,4
+            case 2: { $playerOrder = [0, 1, 2, 3]; break; }
+            // A:1,4 B:2,3
+            case 3: { $playerOrder = [0, 1, 3, 2]; break; }
+        }
 
         // Set the colors of the players with HTML color code
         // The default below is red/green/blue/orange/brown
@@ -133,8 +144,18 @@ class ThreeSpot extends Table
 
 
         // create bids
-        // TODO: make min_bid configurable from game options
-        $min_bid = 7;
+        $min_bid_option = self::getGameStateValue('min_bid_option');
+        self::dump('min bid option', $min_bid_option);
+
+        $min_bid = 1;
+        switch($min_bid_option) {
+            case 1: { $min_bid = 5; break; }
+            case 2: { $min_bid = 6; break; }
+            case 3: { $min_bid = 7; break; }
+            case 4: { $min_bid = 8; break; }
+        }
+        self::setGameStateInitialValue('min_bid', $min_bid);
+
         $sql = "INSERT INTO bid (bid_value, no_trump, label) VALUES";
         $values = array();
         // pass bid
@@ -931,7 +952,7 @@ class ThreeSpot extends Table
             }
         }
 
-        $min_bid = 7;
+        $min_bid = self::getGameStateValue('min_bid');;
         $maxScore = 52 - $min_bid;
 
         // Apply scores to player

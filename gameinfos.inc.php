@@ -25,7 +25,7 @@ $gameinfos = array(
 'year' => 1965,                 
 
 // Game publisher (use empty string if there is no publisher)
-'publisher' => 'Public Domain',                     
+'publisher' => '',                     
 
 // Url of game publisher website
 'publisher_website' => '',   
