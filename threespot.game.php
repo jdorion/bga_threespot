@@ -145,7 +145,7 @@ class ThreeSpot extends Table
 
         // create bids
         $min_bid_option = self::getGameStateValue('min_bid_option');
-        self::dump('min bid option', $min_bid_option);
+        //self::dump('min bid option', $min_bid_option);
 
         $min_bid = 1;
         switch($min_bid_option) {
@@ -357,7 +357,7 @@ class ThreeSpot extends Table
             $result[] = $player_id;
         }
 
-        self::dump('player ids', $result);
+        //self::dump('player ids', $result);
         return $result;
     }
 
@@ -415,11 +415,13 @@ class ThreeSpot extends Table
         $isDealer = $player == self::getGameStateValue('dealerPlayerID');
         $result = array();
 
+        /*
         self::dump("getValidBids player", $player);
         self::dump('getValidBids isDealer', $isDealer);
         self::dump('current bid', $currentBid);
         self::dump('currentBidId', $currentBidId);
         self::dump('currentBidValue', $currentBidValue);
+        */
 
         // this is dependent on bid ids being set in ascending order
         foreach ($allBids as $bid_id => $bid ) {
@@ -491,8 +493,8 @@ class ThreeSpot extends Table
         $bid = self::getBid($bestBid);
         $bidValue = intval($bid['bid_value']);
 
-        self::dump('tricks won: ', $tricksWon);
-        self::dump('bid value: ', $bidValue);
+        //self::dump('tricks won: ', $tricksWon);
+        //self::dump('bid value: ', $bidValue);
 
         // threespot bid rule, if you make it you win. If you don't you lose.
         if ($bidValue == 12) {
@@ -519,7 +521,7 @@ class ThreeSpot extends Table
             $result = $result * 2;       
         }
 
-        self::dump('result: ', $result);
+        //self::dump('result: ', $result);
         return $result;
     }
 
@@ -557,8 +559,9 @@ class ThreeSpot extends Table
                 self::setGameStateValue('bestBidder', $player_id);
                 self::setGameStateValue('bestBid', $bid_id);
                 
-                self::dump('bid made. bestBidder', $player_id);
-                self::dump('bid made. bid id', $bid_id);
+                //self::dump('bid made. bestBidder', $player_id);
+                //self::dump('bid made. bid id', $bid_id);
+
                 // And notify
                 self::notifyAllPlayers(
                     'bidMade', 
@@ -573,7 +576,7 @@ class ThreeSpot extends Table
             // Next player
             $this->gamestate->nextState('makeBid');
         } else {
-            self::dump( 'bid id', $bid_id );
+            //self::dump( 'bid id', $bid_id );
             throw new feException( self::_("You are not allowed to make that bid!"), true );
         }
     }
@@ -685,12 +688,15 @@ class ThreeSpot extends Table
     $dealerPlayer = $players[self::getGameStateValue('dealerPlayerID')];
     $teamA1 = $players[self::getGameStateValue('teamA1')];
     $teamA2 = $players[self::getGameStateValue('teamA2')];
+    
+    /*
     self::debug('New Hand');
     self::dump('current bidder: ', $firstBidder['player_name']);
     self::dump('dealer: ', $dealerPlayer['player_name']);
     self::dump('teamA1: ', $teamA1['player_name']);
     self::dump('teamA2: ', $teamA2['player_name']);
     self::dump('numBids', self::getGameStateValue('numBids'));
+    */
 
     // check existing bid and only return 'Pass' / valid bids / take current bid (if dealer)
     $result = array();
@@ -775,7 +781,7 @@ class ThreeSpot extends Table
             // if this was a trump bid, ask bid winner to set trump
             if ($bid['no_trump'] == 0) {
 
-                self::debug('setting trump');
+                //self::debug('setting trump');
                 // ask bid winner to set trump
                 $this->gamestate->changeActivePlayer($bestBidder);
                 self::giveExtraTime($bestBidder);
@@ -787,8 +793,8 @@ class ThreeSpot extends Table
                 $player_name = $players[ $bestBidder ]['player_name'];
                 $bid_value = $bid['bid_value'];
 
-                self::dump('player name', $player_name);
-                self::dump('bid value', $bid_value);
+                //self::dump('player name', $player_name);
+                //self::dump('bid value', $bid_value);
 
                 //notify all players to update the handinfo div with the new hand info
                 self::notifyAllPlayers( 'trumpSet', clienttranslate('${player_name} has won the bet with ${bet}, no trump'), array(
@@ -865,8 +871,8 @@ class ThreeSpot extends Table
             }
 
             // save points gained/lost in this trick
-            self::dump('trick points: ', $points);
-            self::dump('trick winner is in Team A: ', self::isTeamA($best_value_player_id));
+            //self::dump('trick points: ', $points);
+            //self::dump('trick winner is in Team A: ', self::isTeamA($best_value_player_id));
             if (self::isTeamA($best_value_player_id)) {
                 $currentHandPoints = self::getGameStateValue('teamA_hand_points');
                 self::setGameStateInitialValue('teamA_hand_points', $currentHandPoints + $points); 

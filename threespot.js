@@ -261,12 +261,12 @@ function (dojo, declare) {
             this.multipleChoiceDialog(
                 _("What's your bid?"), bids,
                 dojo.hitch(this, function (choice) {
-                    console.log('choice: ' + choice);
+                    //console.log('choice: ' + choice);
                     var bidchoice = bids[choice];
                     window.bidchoice = bidchoice;
                     var bidId = parseInt(bidchoice.bid_id);
                     window.bidId = bidId;
-                    console.log('dialog callback with ' + bids[choice] + ", id: " + bidId);
+                    //console.log('dialog callback with ' + bids[choice] + ", id: " + bidId);
                     this.ajaxcall("/" + this.game_name + "/" + this.game_name + "/" + action + ".html", { id: bidId }, this, function (result) { });
                 }));
         },
@@ -287,7 +287,7 @@ function (dojo, declare) {
         },
 
         playCardOnTable : function(player_id, color, value, card_id) {
-            console.log("playing card on table: player_id: " + player_id + ", color: " + color + ", value: " + value + ", card_id: " + card_id);
+            //console.log("playing card on table: player_id: " + player_id + ", color: " + color + ", value: " + value + ", card_id: " + card_id);
             
             // hack for the 3 and 5 so it calculates the correct positioning in the CSS sprite
             var card_value = value;
@@ -365,9 +365,6 @@ function (dojo, declare) {
                 }
             }
 
-            console.log(bidArray);
-            window.bidArray = bidArray;
-            console.log('bidarray length: ' + bidArray.length);
             var result = {};
             for (var key in bidArray) {
                 result[key] = new Bid(bidArray[key]);
@@ -396,7 +393,6 @@ function (dojo, declare) {
 
         if (items.length > 0) {
             var action = 'playCard';
-            console.log('playing card');
             if (this.checkAction(action, true)) {
                 // Can play a card
                 var card_id = items[0].id;                    
@@ -431,8 +427,6 @@ function (dojo, declare) {
         */
         setupNotifications: function()
         {
-            console.log( 'notifications subscriptions setup' );
-
             dojo.subscribe('newHand', this, "notif_newHand");
             dojo.subscribe('playCard', this, "notif_playCard");
             dojo.subscribe( 'trickWin', this, "notif_trickWin" );
