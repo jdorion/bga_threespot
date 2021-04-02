@@ -1054,21 +1054,128 @@ class ThreeSpot extends Table
     function zombieTurn( $state, $active_player )
     {
     	$statename = $state['name'];
-    	
+        $player_id = self::getActivePlayerId();
+        $players = self::loadPlayersBasicInfos();
+
         if ($state['type'] === "activeplayer") {
+            
             switch ($statename) {
-                default:
-                    $this->gamestate->nextState( "zombiePass" );
-                	break;
+                
+                case "biddingTurn":
+                    
+                    $validBids = self::getValidBids($player_id);
+                    // zombie player will bid the lowest possible bid: usually pass, but the lowest value if stuck dealer bid
+                    $bid = array_values($validBids)[0];
+                    $bid_id = $bid['bid_id'];
+            
+                    // increment number of bids even if it's a pass (it's how we have to check if everyone has bid)
+                    $numBids = self::getGameStateValue('numBids');
+                    self::SetGameStateValue('numBids', $numBids + 1);
+                    
+                    // if it's a pass, no need to set anything
+                    if (self::isPassingBid($bid_id)) {
+                        // notify
+                        self::notifyAllPlayers(
+                            'bidMade', 
+                            clienttranslate('${player_name} passes.'), 
+                            array (
+                                'player_name' => self::getActivePlayerName(),
+                            )
+                        );
+                    } else {
+                        // if this wasn't a pass, save bidder and bid id 
+                        // (the only valid bids apart from pass are higher than what was already bid)
+                        self::setGameStateValue('bestBidder', $player_id);
+                        self::setGameStateValue('bestBid', $bid_id);
+                        
+                        //self::dump('bid made. bestBidder', $player_id);
+                        //self::dump('bid made. bid id', $bid_id);
+        
+                        // And notify
+                        self::notifyAllPlayers(
+                            'bidMade', 
+                            clienttranslate('${player_name} bids ${label}'), 
+                            array (
+                                'player_name' => self::getActivePlayerName(),
+                                'label' => $bid['label'],
+                            )
+                        );
+                    }
+        
+                    // Next player
+                    $this->gamestate->nextState('makeBid');
+               
+                break;
+
+                case "settingTrump":
+                    
+                    $bid = self::getBid(self::getGameStateValue( 'bestBid' ));
+                    // zombie player always going to set spades as trump
+                    $trump_id = 1;
+                    // set the trump global variable
+                    self::setGameStateInitialValue('handColor', $trump_id);
+                    
+                    //notify all players to update the handinfo div with the new hand info
+                    self::notifyAllPlayers( 'trumpSet', clienttranslate('${player_name} has won the bet with ${bet}, trump is ${trump}'), array(
+                        'player_name' => $players[ $player_id ]['player_name'],
+                        'biddingTeam' => (self::isTeamA($player_id)) ? "Team A" : "Team B",
+                        'bet' => $bid['bid_value'],
+                        'trump' => $this->colors [$trump_id] ['name']
+                    ) );  
+                    
+                    // Next player
+                    $this->gamestate->nextState('newTrick');
+                break;
+
+                case "playerTurn":
+
+                    $validCards = self::getValidCards($player_id);
+                    // zombie player will always play the first valid card
+                    $card_id = array_values($validCards)[0];
+
+                    $this->cards->moveCard($card_id, 'cardsontable', $player_id);
+                    $currentCard = $this->cards->getCard($card_id);
+        
+                    // set the current trick color if it it hasn't yet
+                    $currentTrickColor = self::getGameStateValue( 'trickColor' ) ;
+                    if( $currentTrickColor == 0 ) {
+                        self::setGameStateValue( 'trickColor', $currentCard['type'] );
+                    }
+                    
+                    // check if card played is trump (for notification)
+                    $currentTrumpColor = self::getGameStateValue( 'handColor' );
+                    $trump = "";
+                    if ($currentCard['type'] == $currentTrumpColor) {
+                        $trump = "(trump)";
+                    }
+        
+                    // And notify
+                    self::notifyAllPlayers(
+                        'playCard', 
+                        clienttranslate('${player_name} plays ${value_displayed}${color_displayed} ${trump}'), 
+                        array (
+                        'i18n' => array (
+                            'color_displayed',
+                            'value_displayed' 
+                        ),
+                        'player_name' => self::getActivePlayerName(),
+                        'value_displayed' => $this->values_label [$currentCard ['type_arg']],
+                        'color_displayed' => $this->colors [$currentCard ['type']] ['name'],
+                        'trump' => $trump,
+                        
+                        'player_id' => $player_id,
+                        'color' => $currentCard ['type'],
+                        'value' => $currentCard ['type_arg'],
+                        'card_id' => $card_id,
+                        )
+                    );
+        
+                    // Next player
+                    $this->gamestate->nextState('playCard');
+
+                break;
             }
 
-            return;
-        }
-
-        if ($state['type'] === "multipleactiveplayer") {
-            // Make sure player is in a non blocking status for role turn
-            $this->gamestate->setPlayerNonMultiactive( $active_player, '' );
-            
             return;
         }
 
