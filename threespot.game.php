@@ -1003,12 +1003,13 @@ class ThreeSpot extends Table
 
         ///// Test if this is the end of the game
         foreach ( $newScores as $player_id => $score ) {
-            if ($score >= 52) {
+            $scoreVal = intval($score);
+            if ($scoreVal >= 52) {
                 // Trigger the end of the game !
                 $this->gamestate->nextState("endGame");
                 return;
             } 
-            if ($score <= 52) {
+            if ($scoreVal <= -52) {
                 // Trigger the end of the game !
                 $this->gamestate->nextState("endGame");
                 return;                

@@ -139,23 +139,16 @@ function (dojo, declare) {
             
                 case 'biddingTurn':
                     if (this.isCurrentPlayerActive()) {
-                        var action = "makeBid";
-
+                        
                         var bids = this.convertToBidObjects(args.args.bids);
                         window.bids = bids;
+                        
+                        // TODO: disable pass if dealer (there's no passing bid)
+                        if ('1' in bids) {
+                            this.addActionButton( 'button_1_id', _('Pass'), 'bidPass' ); 
+                        }
 
-                        // get bids from args.args and turn into an array
-                        this.multipleChoiceDialog(
-                            _("What's your bid?"), bids,
-                            dojo.hitch(this, function (choice) {
-                                console.log('choice: ' + choice);
-                                var bidchoice = bids[choice];
-                                window.bidchoice = bidchoice;
-                                var bidId = parseInt(bidchoice.bid_id);
-                                window.bidId = bidId;
-                                console.log('dialog callback with ' + bids[choice] + ", id: " + bidId);
-                                this.ajaxcall("/" + this.game_name + "/" + this.game_name + "/" + action + ".html", { id: bidId }, this, function (result) { });
-                            }));
+                        this.addActionButton( 'button_2_id', _('Bid'), 'bidPopUp' ); 
                     } else {
                         dojo.query("#myhand .stockitem").removeClass("stockitem_selectable").addClass("stockitem_unselectable");
                     }
@@ -163,6 +156,10 @@ function (dojo, declare) {
                 break;
 
                 case 'settingTrump':
+
+                    // reset trick count to 0 for both teams
+                    this.replaceTrickCount(0,0);
+
                     if (this.isCurrentPlayerActive()) {
                         var action = "setTrump";
 
@@ -223,7 +220,7 @@ function (dojo, declare) {
             if( this.isCurrentPlayerActive() )
             {            
                 switch( stateName )
-                {
+                {               
 /*               
                  Example:
  
@@ -249,6 +246,31 @@ function (dojo, declare) {
             script.
         
         */
+
+        bidPass : function() {
+            var action = "makeBid";
+            var passBidId = 1;
+            this.ajaxcall("/" + this.game_name + "/" + this.game_name + "/" + action + ".html", { id: passBidId }, this, function (result) { });
+        },
+
+        bidPopUp : function() {
+            
+            var action = "makeBid";
+            var bids = window.bids;
+
+            this.multipleChoiceDialog(
+                _("What's your bid?"), bids,
+                dojo.hitch(this, function (choice) {
+                    console.log('choice: ' + choice);
+                    var bidchoice = bids[choice];
+                    window.bidchoice = bidchoice;
+                    var bidId = parseInt(bidchoice.bid_id);
+                    window.bidId = bidId;
+                    console.log('dialog callback with ' + bids[choice] + ", id: " + bidId);
+                    this.ajaxcall("/" + this.game_name + "/" + this.game_name + "/" + action + ".html", { id: bidId }, this, function (result) { });
+                }));
+        },
+
         // Get card unique identifier based on its color and value
         // here we need to check if the card in the hand is the 3 or 5 and change the id
         getCardUniqueId : function(color, value) {
