@@ -855,13 +855,21 @@ class ThreeSpot extends Table
                 // if trump has been played, that's the only number that matters now
                 // added extra check to skip trump rules if trump was led
                 } else if ($currentTrickColor != $currentTrumpColor && $card['type'] == $currentTrumpColor) {
-                    $trumpHasBeenPlayed = true;
-                    // reset best value to trump value, in case your trump is lower than what's been played.
-                    $best_value = 0;
-                    if ($best_value_player_id === null || $card ['type_arg'] > $best_value) {
-                        $best_value_player_id = $card ['location_arg']; // Note: location_arg = player who played this card on table
-                        $best_value = $card ['type_arg']; // Note: type_arg = value of the card
+                    
+                    // if this is the first trump played, set the flag and reset 'best value'
+                    if (!$trumpHasBeenPlayed) {
+                        $trumpHasBeenPlayed = true;
+                        // reset best value to trump value, in case your trump is lower than what's been played.
+                        $best_value = 0;
                         $best_color = $card ['type'];
+                    }
+
+                    // if the value of the card is greater than 'best value' (set initially to 0 if first trump played)
+                    if ($card ['type_arg'] > $best_value) {
+                        // set this player as the current 'best player'
+                        $best_value_player_id = $card ['location_arg']; // Note: location_arg = player who played this card on table
+                        // set this card's value as the 'best value'
+                        $best_value = $card ['type_arg']; // Note: type_arg = value of the card
                     }
                 }
             }
