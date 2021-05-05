@@ -315,9 +315,21 @@ class ThreeSpot extends Table
     */
     function getGameProgression()
     {
-        // TODO: compute and return the game progression
 
-        return 0;
+        $highestScore = 0;
+        $players = self::loadPlayersBasicInfos();
+
+        foreach( $players as $player_id => $player )
+        {
+            $playerScore = self::dbGetScore($player_id);
+            if ($playerScore > $highestScore) {
+                $highestScore = $playerScore;
+            }
+        }
+
+        if ($highestScore == 0) { return 0; }
+        $result = (int)($highestScore / 52 * 100);
+        return $result;
     }
 
 
