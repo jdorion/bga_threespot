@@ -167,8 +167,8 @@ class ThreeSpot extends Table
             $values[] = "('$x', '1', '$x - no trump')";
         }
         // three spot bids (auto-win if successful)
-        $values[] = "('12', '0', 'Three spot')";
-        $values[] = "('12', '1', 'Three spot - no trump')";
+        $values[] = "('12', '0', 'Three spot (12)')";
+        $values[] = "('12', '1', 'Three spot (12) - no trump')";
 
         $sql .= implode ( $values, ',' );
         self::DbQuery( $sql );

@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS `bid` (
   `bid_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `bid_value` int(2) NOT NULL,
   `no_trump` int(2) NOT NULL,
-  `label` varchar(24) NOT NULL,
+  `label` varchar(30) NOT NULL,
   PRIMARY KEY (`bid_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;
 
