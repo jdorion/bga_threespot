@@ -40,8 +40,32 @@
         /*********** Place your code below:  ************/
         $template = self::getGameName() . "_" . self::getGameName();
         
+        // adjust this so that the current player is always S
         $directions = array( 'S', 'W', 'N', 'E' );
-        
+
+        // find out if the current player is player 1, 2, 3, or 4
+        global $g_user;
+        $current_player_id = $g_user->get_id();
+        $current_player_index = 0;
+        $current_index = 0;
+        foreach ( $players as $player_id => $info ) {
+            if ($player_id == $current_player_id) {
+                $current_player_index = $current_index;
+                break;
+            } else {
+                $current_index = $current_index + 1;
+            }
+        }
+
+        // only shift the array if it is necessary
+        if ($current_player_index > 0) {
+            // shift it x times
+            for ($x = 1; $x <= $current_player_index; $x++) {
+                $popped = array_pop($directions);
+                array_unshift($directions, $popped);
+            }
+        }
+
         // this will inflate our player block with actual players data
         $this->page->begin_block($template, "player");
         foreach ( $players as $player_id => $info ) {
