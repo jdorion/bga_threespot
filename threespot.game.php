@@ -604,11 +604,11 @@ class ThreeSpot extends Table
             self::setGameStateInitialValue('handColor', $trump_id);
             
             //notify all players to update the handinfo div with the new hand info
-            self::notifyAllPlayers( 'trumpSet', clienttranslate('${player_name} has won the bet with ${bet}, trump is ${trump}'), array(
+            self::notifyAllPlayers( 'trumpSet', clienttranslate('${player_name} has won the bet with ${bet}, trump is ${suit}'), array(
                 'player_name' => $players[ $player_id ]['player_name'],
                 'biddingTeam' => (self::isTeamA($player_id)) ? "Team A" : "Team B",
                 'bet' => $bid['bid_value'],
-                'trump' => $this->colors [$trump_id] ['name']
+                'suit' => $this->colors [$trump_id] ['name']
             ) );  
             
             // Next player
@@ -643,15 +643,15 @@ class ThreeSpot extends Table
             // And notify
             self::notifyAllPlayers(
                 'playCard', 
-                clienttranslate('${player_name} plays ${value_displayed}${color_displayed} ${trump}'), 
+                clienttranslate('${player_name} plays ${value_displayed}${suit} ${trump}'), 
                 array (
                 'i18n' => array (
-                    'color_displayed',
+                    'suit',
                     'value_displayed' 
                 ),
                 'player_name' => self::getActivePlayerName(),
                 'value_displayed' => $this->values_label [$currentCard ['type_arg']],
-                'color_displayed' => $this->colors [$currentCard ['type']] ['name'],
+                'suit' => $this->colors [$currentCard ['type']] ['name'],
                 'trump' => $trump,
                 
                 'player_id' => $player_id,
@@ -915,11 +915,11 @@ class ThreeSpot extends Table
             $bid = self::getCurrentBid();
 
             $trumpValue = ($currentTrumpColor == 0) ? 'no trump' : $this->colors [$currentTrumpColor] ['name'];
-            self::notifyAllPlayers( 'trickWin', clienttranslate('${player_name} wins the trick with ${card_value}${card_color} ${trumpText} for ${points} points'), array(
+            self::notifyAllPlayers( 'trickWin', clienttranslate('${player_name} wins the trick with ${card_value}${suit} ${trumpText} for ${points} points'), array(
                 'player_id' => $best_value_player_id,
                 'player_name' => $players[ $best_value_player_id ]['player_name'],
                 'card_value' => $this->values_label [$best_value],
-                'card_color' => $this->colors [$best_color] ['name'],
+                'suit' => $this->colors [$best_color] ['name'],
                 'trumpText' => $trumpText,
                 'points' => $points,
                 'trump' => $trumpValue,
@@ -1136,11 +1136,11 @@ class ThreeSpot extends Table
                     self::setGameStateInitialValue('handColor', $trump_id);
                     
                     //notify all players to update the handinfo div with the new hand info
-                    self::notifyAllPlayers( 'trumpSet', clienttranslate('${player_name} has won the bet with ${bet}, trump is ${trump}'), array(
+                    self::notifyAllPlayers( 'trumpSet', clienttranslate('${player_name} has won the bet with ${bet}, trump is ${suit}'), array(
                         'player_name' => $players[ $player_id ]['player_name'],
                         'biddingTeam' => (self::isTeamA($player_id)) ? "Team A" : "Team B",
                         'bet' => $bid['bid_value'],
-                        'trump' => $this->colors [$trump_id] ['name']
+                        'suit' => $this->colors [$trump_id] ['name']
                     ) );  
                     
                     // Next player
@@ -1172,15 +1172,15 @@ class ThreeSpot extends Table
                     // And notify
                     self::notifyAllPlayers(
                         'playCard', 
-                        clienttranslate('${player_name} plays ${value_displayed}${color_displayed} ${trump}'), 
+                        clienttranslate('${player_name} plays ${value_displayed}${suit} ${trump}'), 
                         array (
                         'i18n' => array (
-                            'color_displayed',
+                            'suit',
                             'value_displayed' 
                         ),
                         'player_name' => self::getActivePlayerName(),
                         'value_displayed' => $this->values_label [$currentCard ['type_arg']],
-                        'color_displayed' => $this->colors [$currentCard ['type']] ['name'],
+                        'suit' => $this->colors [$currentCard ['type']] ['name'],
                         'trump' => $trump,
                         
                         'player_id' => $player_id,

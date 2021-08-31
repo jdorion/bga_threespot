@@ -480,10 +480,50 @@ function (dojo, declare) {
         },
         notif_trumpSet : function(notif) {
             // nothing for now, could update hand info in future??
-            this.replaceHandInfo(notif.args.biddingTeam, notif.args.trump, notif.args.bet);
+            this.replaceHandInfo(notif.args.biddingTeam, notif.args.suit, notif.args.bet);
         },
         notif_newDealer : function(notif) {
             this.replaceDealerFlag(notif.args.id, notif.args.playerIds);
-        }
+        },
+
+        /* @Override */
+        format_string_recursive : function(log, args) {
+            try {
+                if (log && args && !args.processed) {
+                    args.processed = true;
+                    
+                    // list of special keys we want to replace with images / html
+                    var key = 'suit';
+                  
+                    window.formatStringRecursiveArg = args;
+                    if (key in args) {
+                        args[key] = this.getTokenDiv(key, args);
+                    }
+                }
+            } catch (e) {
+                console.error(log,args,"Exception thrown", e.stack);
+            }
+            return this.inherited(arguments);
+        },
+
+        getTokenDiv : function(key, args) {
+            
+            window.tokenkeys = key;
+            window.tokenargs = args;
+
+            var color = "red";
+            var suit = args[key];
+            if (suit == '♣' || suit == '♠') {
+                color = "black";
+            }
+
+            var tokenDiv = this.format_block('jstpl_log_suit', {
+                "suit" : suit,
+                "color" : color,
+            });
+         
+            return tokenDiv;
+
+       },
    });             
 });
